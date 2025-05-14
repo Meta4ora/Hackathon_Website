@@ -1,11 +1,12 @@
 from django.shortcuts import render, redirect
 from .forms import RegisterForm
 from django.contrib.auth import login
-from django.http import HttpResponse
+
+from django.shortcuts import render
 
 def index(request):
-    return HttpResponse("Это главная страница блога.")
-def register_view(request):
+    return render(request, 'index.html')
+def register(request):
     if request.method == 'POST':
         form = RegisterForm(request.POST)
         if form.is_valid():

@@ -1,0 +1,91 @@
+/* Сброс стилей и базовые настройки */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', Arial, sans-serif;
+    color: #fff;
+    line-height: 1.6;
+}
+
+/* Секция героя */
+.bg-section {
+    font-family: 'Poppins', Arial, sans-serif;
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    color: #fff;
+}
+
+.hero-content h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.subtitle {
+    font-family: 'Poppins', Arial, sans-serif;
+    font-size: 1.5rem;
+    margin-bottom: 2rem;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.buttons {
+    font-family: 'Poppins', Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.btn-primary {
+    font-family: 'Poppins', Arial, sans-serif;
+    display: inline-block;
+    padding: 1rem 2rem;
+    border-radius: 25px;
+    text-decoration: none;
+    font-size: 22px;
+    font-weight: bold;
+    transition: opacity 0.3s;
+    background-color: #fff200; /* Однотонный фон для основной кнопки */
+    color: #000; /* Цвет текста для контраста */
+    border: none; /* Убираем границу */
+}
+
+.btn-secondary {
+    font-family: 'Poppins', Arial, sans-serif;
+    display: inline-block;
+    padding: 1rem 2rem;
+    border-radius: 25px;
+    text-decoration: none;
+    font-size: 22px;
+    font-weight: bold;
+    transition: opacity 0.3s;
+    background: transparent; /* Прозрачный фон */
+    border: 3px solid #fff200; /* Толстая граница */
+    color: #fff200; /* Цвет текста */
+}
+
+.btn-primary:hover, .btn-secondary:hover {
+    opacity: 0.7; /* Слегка уменьшаем прозрачность при наведении */
+}
+
+.calendar-section {
+    padding: 2rem;
+    text-align: center;
+    background-color: #fff; /* Белый фон для секции календаря */
+    color: #101010;
+}
+
+.calendar-section h2 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}

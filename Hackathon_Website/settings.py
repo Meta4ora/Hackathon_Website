@@ -26,7 +26,8 @@ SECRET_KEY = 'django-insecure-tir)^y*r4@@)cb=b%8i84wp8l+d*5x@zye&_6+%3&2yml%vsb*
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 
 # Application definition
 
@@ -43,7 +44,11 @@ INSTALLED_APPS = [
 ]
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
-CRISPY_TEMPLATE_PACK = "bootstrap5"
+CRISPY_TEMPLATE_PACK = 'bootstrap5'
+CRISPY_CLASS_CONVERTERS = {
+    'form-control': 'form-control form-control-sm'  # Уменьшает поля ввода
+}
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

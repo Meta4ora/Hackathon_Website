@@ -1,0 +1,30 @@
+{% load static %}
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hackathons.SUAI</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <!-- Заголовок и фоновое изображение -->
+    <header class="bg-section" style="background-image: url('{% static 'images/index.JPG' %}');">
+        <div class="hero-content">
+            <h1>HACKATHONS.SUAI</h1>
+            <p class="subtitle">Хакатоны, IT-чемпионаты, IT-турниры, олимпиады по программированию и разработке</p>
+            <div class="buttons">
+                <a href="/register/" class="btn-primary">Авторизироваться</a>
+                <a href="#about" class="btn-secondary">О нас</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Секция календаря мероприятий -->
+    <section class="calendar-section">
+        <h2>Календарь мероприятий</h2>
+        <a href="/add-event/" class="btn-primary">Добавить мероприятие</a>
+    </section>
+</body>
+</html>
