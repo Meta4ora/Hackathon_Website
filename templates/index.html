@@ -9,22 +9,34 @@
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
-    <!-- Заголовок и фоновое изображение -->
     <header class="bg-section" style="background-image: url('{% static 'images/index.JPG' %}');">
-        <div class="hero-content">
+        <div class="bg-content">
             <h1>HACKATHONS.SUAI</h1>
             <p class="subtitle">Хакатоны, IT-чемпионаты, IT-турниры, олимпиады по программированию и разработке</p>
             <div class="buttons">
-                <a href="/register/" class="btn-primary">Авторизироваться</a>
+                <a href="/register/" class="btn-primary">Зарегистрироваться</a>
                 <a href="#about" class="btn-secondary">О нас</a>
             </div>
+            <p class="auth">У вас уже есть аккаунт? <a href="/register/" class="login-link">Войти...</a></p>
         </div>
     </header>
 
-    <!-- Секция календаря мероприятий -->
     <section class="calendar-section">
         <h2>Календарь мероприятий</h2>
         <a href="/add-event/" class="btn-primary">Добавить мероприятие</a>
+
+        <div class="event-grid">
+            {% for event in events %}
+                <div class="event-card">
+                    <h3>{{ event.event_name }}</h3>  <!-- Use 'event_name' instead of 'title' -->
+                    <p>Дата проведения: {{ event.start_date|date:"d E Y" }} - {{ event.end_date|date:"d E Y" }}</p>  <!-- Use 'start_date' and 'end_date' -->
+                    <p>Место: {{ event.venue_name }}, {{ event.venue_location }}</p>  <!-- Optionally display venue info -->
+                </div>
+            {% empty %}
+                <p>Пока нет мероприятий.</p>
+            {% endfor %}
+        </div>
+        <a href="/add-event/" class="btn-primary">Посмотреть больше...</a>
     </section>
 </body>
 </html>

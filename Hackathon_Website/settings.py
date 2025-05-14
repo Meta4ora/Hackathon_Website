@@ -86,8 +86,12 @@ WSGI_APPLICATION = 'Hackathon_Website.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'Hackathon_DB',       # Имя БД
+        'USER': 'guest_user',              # Имя роли
+        'PASSWORD': '1',           # Пароль роли
+        'HOST': 'localhost',          # Или IP
+        'PORT': '5433',
     }
 }
 
@@ -114,12 +118,11 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
-
+# settings.py
+LANGUAGE_CODE = 'ru-RU'
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
+USE_L10N = True
 USE_TZ = True
 
 
