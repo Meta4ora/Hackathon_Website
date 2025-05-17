@@ -7,18 +7,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hackathons.SUAI</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
     <header class="bg-section" style="background-image: url('{% static 'images/index.JPG' %}');">
         <div class="bg-content">
-            <h1>HACKATHONS.SUAI</h1>
-            <p class="subtitle">Хакатоны, IT-чемпионаты, IT-турниры, олимпиады по программированию и разработке</p>
-            <div class="buttons">
-                <a href="/register/" class="btn-primary">Зарегистрироваться</a>
-                <a href="#about" class="btn-secondary">О нас</a>
+            <div class="bg-overlay">
+                <h1>HACKATHONS.SUAI</h1>
+                <p class="subtitle">Хакатоны, IT-чемпионаты, IT-турниры, олимпиады по программированию и разработке</p>
+                <div class="buttons">
+                    <a href="{% url 'register' %}" class="btn-primary">Зарегистрироваться</a>
+                    <a href="#about" class="btn-secondary">О нас</a>
+                </div>
+                <p class="auth">
+                    {% if not is_authenticated %}
+                        У вас уже есть аккаунт? <a href="{% url 'login' %}" class="login-link">Войти...</a>
+                    {% else %}
+                        Добро пожаловать, {{ user_data.email }}! <a href="{% url 'logout' %}" class="login-link">Выйти</a>
+                    {% endif %}
+                </p>
+                {% if messages %}
+                    <div class="messages">
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
-            <p class="auth">У вас уже есть аккаунт? <a href="/register/" class="login-link">Войти...</a></p>
         </div>
+
+        {% if is_authenticated %}
+            <a href="{% url 'profile' %}" class="profile-link">
+                <img src="{% static 'images/profile_icon.PNG' %}" alt="Profile" class="profile-icon">
+                <p class="profile-label">Profile</p>
+            </a>
+        {% endif %}
     </header>
 
     <section class="calendar-section">
@@ -28,9 +54,9 @@
         <div class="event-grid">
             {% for event in events %}
                 <div class="event-card">
-                    <h3>{{ event.event_name }}</h3>  <!-- Use 'event_name' instead of 'title' -->
-                    <p>Дата проведения: {{ event.start_date|date:"d E Y" }} - {{ event.end_date|date:"d E Y" }}</p>  <!-- Use 'start_date' and 'end_date' -->
-                    <p>Место: {{ event.venue_name }}, {{ event.venue_location }}</p>  <!-- Optionally display venue info -->
+                    <h3>{{ event.event_name }}</h3>
+                    <p>Дата проведения: {{ event.start_date|date:"d E Y" }} - {{ event.end_date|date:"d E Y" }}</p>
+                    <p>Место: {{ event.venue_name }}, {{ event.venue_location }}</p>
                 </div>
             {% empty %}
                 <p>Пока нет мероприятий.</p>
@@ -38,5 +64,6 @@
         </div>
         <a href="/add-event/" class="btn-primary">Посмотреть больше...</a>
     </section>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

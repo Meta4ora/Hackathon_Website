@@ -4,14 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="880c30e7-975f-43d7-8d7b-6b757f9663fd" name="Changes" comment="Updated main page design and registration form design. Added two new images. Creates new static folders and subfolders">
+    <list default="true" id="880c30e7-975f-43d7-8d7b-6b757f9663fd" name="Changes" comment="Added events cards dynamically load from Postgres DB. Redesign main form">
+      <change afterPath="$PROJECT_DIR$/templates/authorization.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Hackathon_Website/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/Hackathon_Website/settings.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/blog/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/blog/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/blog/forms.py" beforeDir="false" afterPath="$PROJECT_DIR$/blog/forms.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/blog/urls.py" beforeDir="false" afterPath="$PROJECT_DIR$/blog/urls.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/blog/views.py" beforeDir="false" afterPath="$PROJECT_DIR$/blog/views.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/db.sqlite3" beforeDir="false" afterPath="$PROJECT_DIR$/db.sqlite3" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/static/css/style.css" beforeDir="false" afterPath="$PROJECT_DIR$/static/css/style.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/static/images/auth.png" beforeDir="false" afterPath="$PROJECT_DIR$/static/images/auth.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/templates/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/register.html" beforeDir="false" afterPath="$PROJECT_DIR$/templates/register.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,8 +25,8 @@
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="Python Script" />
-        <option value="HTML File" />
         <option value="CSS File" />
+        <option value="HTML File" />
       </list>
     </option>
   </component>
@@ -118,7 +121,15 @@
       <updated>1747174015554</updated>
       <workItem from="1747174016577" duration="7406000" />
       <workItem from="1747214173085" duration="1254000" />
-      <workItem from="1747215448230" duration="4126000" />
+      <workItem from="1747215448230" duration="4229000" />
+      <workItem from="1747224446746" duration="2163000" />
+      <workItem from="1747227752254" duration="112000" />
+      <workItem from="1747230270974" duration="822000" />
+      <workItem from="1747251215691" duration="3519000" />
+      <workItem from="1747303912124" duration="590000" />
+      <workItem from="1747313774350" duration="228000" />
+      <workItem from="1747394695223" duration="5651000" />
+      <workItem from="1747469303041" duration="7704000" />
     </task>
     <task id="LOCAL-00001" summary="Added some logic and html additions">
       <option name="closed" value="true" />
@@ -144,7 +155,15 @@
       <option name="project" value="LOCAL" />
       <updated>1747181483716</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="Added events cards dynamically load from Postgres DB. Redesign main form">
+      <option name="closed" value="true" />
+      <created>1747219688579</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1747219688579</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -154,6 +173,7 @@
     <MESSAGE value="Added some logic and html additions" />
     <MESSAGE value="Trash additions to remote project" />
     <MESSAGE value="Updated main page design and registration form design. Added two new images. Creates new static folders and subfolders" />
-    <option name="LAST_COMMIT_MESSAGE" value="Updated main page design and registration form design. Added two new images. Creates new static folders and subfolders" />
+    <MESSAGE value="Added events cards dynamically load from Postgres DB. Redesign main form" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added events cards dynamically load from Postgres DB. Redesign main form" />
   </component>
 </project>

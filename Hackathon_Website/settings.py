@@ -58,6 +58,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',  # Должно быть включено
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
 ]
 
 ROOT_URLCONF = 'Hackathon_Website.urls'
@@ -88,9 +90,25 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'Hackathon_DB',       # Имя БД
+        'USER': 'admin_user',              # Имя роли
+        'PASSWORD': 'admin_pass_hackathon',           # Пароль роли
+        'HOST': 'localhost',          # Или IP
+        'PORT': '5433',
+    },
+    'guest': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'Hackathon_DB',       # Имя БД
         'USER': 'guest_user',              # Имя роли
         'PASSWORD': '1',           # Пароль роли
         'HOST': 'localhost',          # Или IP
+        'PORT': '5433',
+    },
+    'org_db': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'Hackathon_DB',  # та же база или другая
+        'USER': 'org_user',
+        'PASSWORD': 'org_pass_hackathon',
+        'HOST': 'localhost',
         'PORT': '5433',
     }
 }
