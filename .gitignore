@@ -1,0 +1,17 @@
+# IDE
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+env/
+venv/
+.env/
+
+# Databases
+*.sqlite3
+
+# Django secret files
+*.env
