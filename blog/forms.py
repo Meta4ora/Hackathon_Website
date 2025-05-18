@@ -1,16 +1,9 @@
-from django import forms
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.hashers import check_password
-from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
-from django.db import connections
-import bcrypt
-
-
-# blog/forms.py
+# forms.py
 from django import forms
 from django.core.exceptions import ValidationError
 import re
+import bcrypt
+from django.db import connections
 
 class RegisterForm(forms.Form):
     email = forms.EmailField(
@@ -126,7 +119,7 @@ class RegisterForm(forms.Form):
         return {
             'id_participant': new_id,
             'email': email,
-            'role': role
+            'role': "Конкурсант"
         }
 
 class LoginForm(forms.Form):
@@ -138,12 +131,24 @@ class LoginForm(forms.Form):
         password = self.cleaned_data.get('password')
 
         with connections['org_db'].cursor() as cursor:
-            cursor.execute("SELECT * FROM public.participants WHERE email = %s", [email])
-            row = cursor.fetchone()
-            if row:
+            # First, check the staff table
+            cursor.execute("SELECT * FROM public.staff WHERE email = %s", [email])
+            staff_row = cursor.fetchone()
+            if staff_row:
                 columns = [col[0] for col in cursor.description]
-                participant = dict(zip(columns, row))
-                print("Participant found:", participant)
+                staff = dict(zip(columns, staff_row))
+                # Assuming the password in the staff table is also hashed with bcrypt
+                if bcrypt.checkpw(password.encode('utf-8'), staff['password_hash'].encode('utf-8')):
+                    return 'admin', staff
+
+            # If no match in staff, check the participants table
+            cursor.execute("SELECT * FROM public.participants WHERE email = %s", [email])
+            participant_row = cursor.fetchone()
+            if participant_row:
+                columns = [col[0] for col in cursor.description]
+                participant = dict(zip(columns, participant_row))
                 if bcrypt.checkpw(password.encode('utf-8'), participant['password_hash'].encode('utf-8')):
                     return 'participant', participant
+
+        # If no match is found in either table
         raise ValidationError("Неверный email или пароль")

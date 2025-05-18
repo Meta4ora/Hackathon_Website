@@ -164,6 +164,7 @@ body {
     object-fit: cover;
     border-radius: 50%;
     cursor: pointer;
+    filter: drop-shadow(0 0 5px rgba(255, 204, 0, 0.6));
 }
 
 
@@ -172,6 +173,9 @@ body {
     font-weight: 500;
     color: #ffffff;
     text-shadow: 0 0 4px rgba(0, 0, 0, 0.5); /* чтобы текст читался на фоне */
+}
+.profile-icon:hover {
+    opacity: 0.8;
 }
 .bg-overlay {
     background-color: rgba(0, 0, 0, 0.6); /* Тёмный полупрозрачный фон */

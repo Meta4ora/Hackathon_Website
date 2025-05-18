@@ -1,0 +1,276 @@
+/* Ensure the body takes up at least the full viewport height and allows scrolling */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Centers vertically */
+    align-items: center; /* Centers horizontally */
+    padding: 40px 0; /* Adds space at the top and bottom */
+    margin: 0;
+}
+
+/* Фон с переливом между темно-желтым и очень темным или изображение */
+.bg-section {
+    background: linear-gradient(-45deg, #1a1a1a, #3e3e3e, #8c8c8c, #3a3a3a);
+    background-size: 400% 400%;
+    animation: animatedDarkGold 25s ease infinite;
+    min-height: 100vh; /* Changed to min-height to allow scrolling */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* Uncomment the following lines and adjust the path if you want to use the image instead */
+    /* background-image: url('{% static "images/auth.png" %}');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center; */
+}
+
+/* Анимация градиента */
+@keyframes animatedDarkGold {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Стили кнопки "Домой" */
+.home-button {
+    position: fixed; /* Changed to fixed to stay in place while scrolling */
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.home-button img {
+    width: 64px;
+    height: 64px;
+    filter: drop-shadow(0 0 5px rgba(255, 204, 0, 0.6));
+}
+
+.home-button:hover {
+    opacity: 0.8;
+}
+
+/* Ensure the container doesn't add extra margins that conflict with the padding */
+.container {
+    width: 100%;
+}
+
+/* Белая карточка формы */
+.card {
+    max-width: 500px;
+    margin: 0 auto; /* Center the card horizontally */
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Карточка мероприятия */
+.event-card {
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    transition: transform 0.3s ease;
+    position: relative;
+    z-index: 1; /* Не выше фиксированных кнопок */
+}
+
+.event-card:hover {
+    transform: translateY(-5px);
+}
+
+.event-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #222;
+    margin-bottom: 0.5rem;
+}
+
+.event-date {
+    font-size: 1rem;
+    color: #555;
+    margin-bottom: 0.5rem;
+}
+
+.event-venue {
+    font-size: 1rem;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.event-location {
+    font-size: 1rem;
+    color: #333;
+    margin-bottom: 1rem;
+}
+
+/* Текстовые элементы */
+.form-heading, .form-label, a {
+    color: #222 !important;
+}
+
+.form-heading {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.form-label {
+    font-size: 1.1rem;
+}
+
+/* Custom styles for crispy forms labels */
+.crispy-label {
+    font-size: 1.1rem;
+}
+
+.btn-lg-custom {
+    font-size: 1.25rem;
+}
+
+.btn-primary {
+    font-family: 'Poppins', Arial, sans-serif;
+    display: inline-block;
+    padding: 1rem 2rem;
+    border-radius: 25px;
+    text-decoration: none;
+    font-size: 22px;
+    font-weight: bold;
+    transition: opacity 0.3s;
+    background-color: #fff200; /* Однотонный фон для основной кнопки */
+    color: #000; /* Цвет текста для контраста */
+    border: none; /* Убираем границу */
+    z-index: 2000; /* Выше карточек и других элементов */
+}
+
+.btn-secondary {
+    font-family: 'Poppins', Arial, sans-serif;
+    display: inline-block;
+    padding: 1rem 2rem;
+    border-radius: 25px;
+    text-decoration: none;
+    font-size: 22px;
+    text-align: center;
+    font-weight: bold;
+    transition: opacity 0.3s;
+    background: transparent; /* Прозрачный фон */
+    border: 3px solid #fff200; /* Толстая граница */
+    color: #fff200; /* Цвет текста */
+    z-index: 2000; /* Выше карточек и других элементов */
+}
+
+.btn-primary:hover, .btn-secondary:hover {
+    opacity: 0.7; /* Слегка уменьшаем прозрачность при наведении */
+}
+
+/* Smaller button style for profile/logout and event details */
+.btn-sm-custom {
+    font-family: 'Poppins', Arial, sans-serif;
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: bold;
+    transition: opacity 0.3s;
+}
+
+.btn-sm-custom.btn-primary {
+    font-size: 22px;
+    background-color: #fff200;
+    color: #000;
+    border: none;
+}
+
+.btn-sm-custom.btn-secondary {
+    font-size: 22px;
+    background: transparent;
+    border: 2px solid #fff200;
+    color: #ffeb00;
+}
+
+/* Custom styles for login and register buttons */
+.login-button {
+    height: 60px; /* Increased height for "Войти" button */
+    line-height: 60px; /* Ensure text aligns vertically */
+    text-align: center; /* Center text horizontally */
+}
+
+.register-button {
+    height: 50px; /* Reduced height for "Зарегистрироваться" button */
+    line-height: 50px; /* Ensure text aligns vertically */
+    text-align: center; /* Center text horizontally */
+    font-size: 18px; /* Reduce text size */
+}
+/* Обертка для вертикального стека кнопок */
+.auth-buttons-vertical {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.header-card {
+    max-width: 600px;
+    margin: 40px auto 2rem auto;
+    padding: 1.5rem;
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    text-align: center;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-height: 800px) {
+    .card {
+        margin: 20px auto; /* Reduce margin on smaller screens */
+    }
+
+    .form-heading {
+        font-size: 1.5rem; /* Reduce heading size */
+    }
+
+    .form-label, .crispy-label {
+        font-size: 1rem; /* Reduce label size */
+    }
+
+    .btn-primary, .btn-secondary {
+        font-size: 18px; /* Reduce button font size */
+        padding: 0.75rem 1.5rem; /* Reduce padding */
+    }
+
+    .login-button {
+        height: 50px; /* Adjust height for smaller screens */
+        line-height: 50px;
+    }
+
+    .register-button {
+        height: 40px; /* Adjust height for smaller screens */
+        line-height: 40px;
+    }
+}
+
+@media (max-width: 767px) {
+    .event-card {
+        margin: 0 auto;
+    }
+
+    .col-md-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    .btn-sm-custom {
+        font-size: 14px;
+        padding: 0.4rem 0.8rem;
+    }
+}
