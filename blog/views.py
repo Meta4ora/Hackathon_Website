@@ -1,9 +1,11 @@
 # views.py
-from django.db import connections
-from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.exceptions import ValidationError
-
+from django.db import connections, IntegrityError, DatabaseError
+from django.contrib import messages
+from django.views.decorators.http import require_http_methods
+from django.shortcuts import redirect, render
 from .forms import LoginForm, RegisterForm
 from .models import PublicEvent
 
@@ -106,3 +108,31 @@ def event_detail(request, event_id):
         'is_authenticated': is_authenticated,
         'user_data': user_data,
     })
+
+@require_http_methods(["POST"])
+def add_event(request):
+    event_name = request.POST.get('event_name')
+    start_date = request.POST.get('start_date')
+    end_date = request.POST.get('end_date')
+    id_venue = request.POST.get('id_venue')
+    id_mentor = request.POST.get('id_mentor')
+
+    try:
+        with connections['default'].cursor() as cursor:
+            # Получаем последний id_event
+            cursor.execute("SELECT MAX(id_event) FROM public.events")
+            max_id = cursor.fetchone()[0] or 0
+            new_id = max_id + 1
+
+            # Вставляем новое мероприятие
+            cursor.execute("""
+                INSERT INTO public.events (id_event, event_name, start_date, end_date, id_venue, id_mentor)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, [new_id, event_name, start_date, end_date, id_venue, id_mentor])
+
+        messages.success(request, f"Мероприятие успешно добавлено с ID {new_id}.")
+
+    except (IntegrityError, DatabaseError) as e:
+        messages.error(request, f"Ошибка при добавлении мероприятия: {str(e)}")
+
+    return redirect('events')
