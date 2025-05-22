@@ -184,3 +184,71 @@ body {
     max-width: 700px;
     margin: 0 auto;
 }
+
+.feedback-section {
+    padding: 40px 20px;
+    background-color: #e8e8e8;
+    text-align: center;
+}
+
+.feedback-grid {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.feedback-card {
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    text-align: left;
+}
+
+.feedback-text {
+    font-style: italic;
+    margin-bottom: 10px;
+}
+
+.feedback-author,
+.feedback-event {
+    font-size: 0.9em;
+    color: #555;
+}
+
+/* Скрытые карточки */
+.feedback-card.hidden {
+    display: none;
+    opacity: 0;
+    transition: opacity 0.6s ease-in-out;
+}
+
+.feedback-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+    display: block;
+}
+
+
+/* Анимация исчезновения кнопки */
+.fade-out {
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+}
+
+
+.feedback-card.fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.footer-bg {
+    background-color: #ffffff;
+    color: black;
+    text-align: center;
+}
+
+

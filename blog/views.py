@@ -1,26 +1,50 @@
 # views.py
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.exceptions import ValidationError
-from django.db import connections, IntegrityError, DatabaseError
+from django.db import connections, IntegrityError, DatabaseError, connection
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import redirect, render
 from .forms import LoginForm, RegisterForm
 from .models import PublicEvent
+from django.utils.timezone import now
 
 def index(request):
     events = PublicEvent.objects.all().order_by('-start_date')[:6]
-    # Проверяем, авторизован ли пользователь
     is_authenticated = 'user_role' in request.session and 'id' in request.session
     user_data = {
         'email': request.session.get('email'),
         'role': request.session.get('user_role'),
     } if is_authenticated else None
+
+    # Получаем отзывы
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT fb.feedback_text, fb.feedback_date, ev.event_name,
+                   p.name, p.surname
+            FROM feedback fb
+            JOIN participants p ON fb.id_participant = p.id_participant
+            JOIN eventdetailsview ev ON fb.id_event = ev.id_event
+            ORDER BY fb.feedback_date DESC
+            LIMIT 20
+        """)
+        raw_feedback = cursor.fetchall()
+        feedback_list = [
+            {
+                'text': row[0],
+                'date': row[1],
+                'event_name': row[2],
+                'first_name': row[3],
+                'last_name': row[4],
+            } for row in raw_feedback
+        ]
+
     return render(request, 'index.html', {
         'events': events,
         'is_authenticated': is_authenticated,
         'user_data': user_data,
+        'feedback_list': feedback_list,
+        'now': now()
     })
 
 def register(request):
@@ -94,6 +118,7 @@ def events(request):
         'events': events,
         'is_authenticated': is_authenticated,
         'user_data': user_data,
+        'now': now()
     })
 
 def event_detail(request, event_id):
@@ -107,6 +132,7 @@ def event_detail(request, event_id):
         'event': event,
         'is_authenticated': is_authenticated,
         'user_data': user_data,
+        'now': now()
     })
 
 @require_http_methods(["POST"])
