@@ -4,6 +4,13 @@ from django.core.exceptions import ValidationError
 import re
 import bcrypt
 from django.db import connections
+from django import forms
+from django.db import connections
+from datetime import date
+import logging
+
+from psycopg2 import DatabaseError
+
 
 class RegisterForm(forms.Form):
     email = forms.EmailField(
@@ -152,3 +159,340 @@ class LoginForm(forms.Form):
 
         # If no match is found in either table
         raise ValidationError("Неверный email или пароль")
+
+from django import forms
+from django.core.exceptions import ValidationError
+import re
+from datetime import date
+
+class ProfileForm(forms.Form):
+    name = forms.CharField(label="Имя", max_length=50, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    surname = forms.CharField(label="Фамилия", max_length=50, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    patronymic = forms.CharField(label="Отчество", max_length=50, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    birth_date = forms.DateField(
+        label="Дата рождения",
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
+        required=False  # Allow empty birth_date if needed
+    )
+    phone = forms.CharField(label="Телефон", max_length=15, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    role = forms.CharField(label="Роль в команде", max_length=15, widget=forms.TextInput(attrs={'class': 'form-control'}))
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone')
+        if not re.match(r'^\+?[1-9]\d{1,14}$', phone):
+            raise ValidationError("Введите корректный номер телефона (например, +79991234567).")
+        return phone
+
+    def clean_birth_date(self):
+        birth_date = self.cleaned_data.get('birth_date')
+        if birth_date and birth_date > date.today():
+            raise ValidationError("Дата рождения не может быть в будущем.")
+        return birth_date
+
+# Set up logging
+logger = logging.getLogger(__name__)
+class FeedbackForm(forms.Form):
+    event = forms.ChoiceField(
+        label="Мероприятие",
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        required=True
+    )
+    feedback_text = forms.CharField(
+        label="Отзыв",
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Введите ваш отзыв'}),
+        max_length=1000,
+        required=True
+    )
+
+    def __init__(self, *args, **kwargs):
+        id_participant = kwargs.pop('id_participant', None)
+        super().__init__(*args, **kwargs)
+        logger.debug(f"Initializing FeedbackForm with id_participant: {id_participant}")
+        if id_participant:
+            try:
+                with connections['org_db'].cursor() as cursor:
+                    cursor.execute("""
+                        SELECT DISTINCT e.id_event, e.event_name
+                        FROM public.events e
+                        JOIN public.event_teams te ON e.id_event = te.id_event
+                        JOIN public.team_participant tp ON te.id_team = tp.id_team
+                        WHERE tp.id_participant = %s
+                        ORDER BY e.event_name
+                    """, [id_participant])
+                    events = cursor.fetchall()
+                    logger.debug(f"Events for id_participant {id_participant}: {events}")
+                    self.fields['event'].choices = [(str(event[0]), event[1]) for event in events]
+                    if not events:
+                        logger.warning(f"No events found for id_participant {id_participant}")
+                        self.fields['event'].choices = [('', 'Нет доступных мероприятий')]
+            except DatabaseError as e:
+                logger.error(f"Error fetching events for id_participant {id_participant}: {str(e)}")
+                self.fields['event'].choices = [('', 'Ошибка загрузки мероприятий')]
+        self.id_participant = id_participant  # Store id_participant for use in clean
+
+    def clean(self):
+        cleaned_data = super().clean()
+        event_id = cleaned_data.get('event')
+        feedback_text = cleaned_data.get('feedback_text')
+
+        # Validate required fields
+        if not event_id or not feedback_text:
+            raise ValidationError("Все поля обязательны для заполнения.")
+        if event_id == '':
+            raise ValidationError("Выберите мероприятие.")
+
+        # Check for existing feedback
+        if self.id_participant and event_id:
+            try:
+                with connections['org_db'].cursor() as cursor:
+                    cursor.execute("""
+                        SELECT id_feedback
+                        FROM public.feedback
+                        WHERE id_participant = %s AND id_event = %s
+                    """, [self.id_participant, event_id])
+                    existing_feedback = cursor.fetchone()
+                    if existing_feedback:
+                        logger.warning(f"Feedback already exists for id_participant {self.id_participant} and id_event {event_id}")
+                        raise ValidationError("Вы уже оставили отзыв на это мероприятие.")
+            except DatabaseError as e:
+                logger.error(f"Error checking existing feedback for id_participant {self.id_participant}, id_event {event_id}: {str(e)}")
+                raise ValidationError("Ошибка при проверке отзыва. Попробуйте позже.")
+
+        return cleaned_data
+
+logger = logging.getLogger(__name__)
+
+# [Existing Forms: RegisterForm, LoginForm, ProfileForm, FeedbackForm remain unchanged]
+
+class TeamRegistrationForm(forms.Form):
+    team_name = forms.CharField(
+        label="Название команды",
+        max_length=100,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'team_name'}),
+        required=True
+    )
+    status = forms.ChoiceField(
+        label="Статус",
+        choices=[('Активна', 'Активна'), ('Неактивна', 'Неактивна')],
+        widget=forms.Select(attrs={'class': 'form-control', 'id': 'status'}),
+        required=True
+    )
+    captain_id = forms.IntegerField(
+        widget=forms.HiddenInput(attrs={'id': 'captain_id'}),
+        required=True
+    )
+    event = forms.ChoiceField(
+        label="Мероприятие",
+        widget=forms.Select(attrs={'class': 'form-control', 'id': 'event'}),
+        required=True
+    )
+    # Participant fields
+    player_1_surname = forms.CharField(
+        label="Фамилия участника 1",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_1_surname'}),
+        required=False
+    )
+    player_1_name = forms.CharField(
+        label="Имя участника 1",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_1_name'}),
+        required=False
+    )
+    player_1_patronymic = forms.CharField(
+        label="Отчество участника 1",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_1_patronymic'}),
+        required=False
+    )
+    player_1_email = forms.EmailField(
+        label="Email участника 1",
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'id': 'player_1_email'}),
+        required=False
+    )
+    player_2_surname = forms.CharField(
+        label="Фамилия участника 2",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_2_surname'}),
+        required=False
+    )
+    player_2_name = forms.CharField(
+        label="Имя участника 2",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_2_name'}),
+        required=False
+    )
+    player_2_patronymic = forms.CharField(
+        label="Отчество участника 2",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_2_patronymic'}),
+        required=False
+    )
+    player_2_email = forms.EmailField(
+        label="Email участника 2",
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'id': 'player_2_email'}),
+        required=False
+    )
+    player_3_surname = forms.CharField(
+        label="Фамилия участника 3",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_3_surname'}),
+        required=False
+    )
+    player_3_name = forms.CharField(
+        label="Имя участника 3",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_3_name'}),
+        required=False
+    )
+    player_3_patronymic = forms.CharField(
+        label="Отчество участника 3",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_3_patronymic'}),
+        required=False
+    )
+    player_3_email = forms.EmailField(
+        label="Email участника 3",
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'id': 'player_3_email'}),
+        required=False
+    )
+    player_4_surname = forms.CharField(
+        label="Фамилия участника 4",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_4_surname'}),
+        required=False
+    )
+    player_4_name = forms.CharField(
+        label="Имя участника 4",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_4_name'}),
+        required=False
+    )
+    player_4_patronymic = forms.CharField(
+        label="Отчество участника 4",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_4_patronymic'}),
+        required=False
+    )
+    player_4_email = forms.EmailField(
+        label="Email участника 4",
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'id': 'player_4_email'}),
+        required=False
+    )
+    player_5_surname = forms.CharField(
+        label="Фамилия участника 5",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_5_surname'}),
+        required=False
+    )
+    player_5_name = forms.CharField(
+        label="Имя участника 5",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_5_name'}),
+        required=False
+    )
+    player_5_patronymic = forms.CharField(
+        label="Отчество участника 5",
+        max_length=50,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_5_patronymic'}),
+        required=False
+    )
+    player_5_email = forms.EmailField(
+        label="Email участника 5",
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'id': 'player_5_email'}),
+        required=False
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Populate event choices with upcoming events
+        try:
+            with connections['org_db'].cursor() as cursor:
+                cursor.execute("""
+                    SELECT id_event, event_name
+                    FROM public.events
+                    WHERE event_date >= %s
+                    ORDER BY event_date
+                """, [date.today()])
+                events = cursor.fetchall()
+                logger.debug(f"Upcoming events: {events}")
+                self.fields['event'].choices = [(str(event[0]), event[1]) for event in events]
+                if not events:
+                    logger.warning("No upcoming events found")
+                    self.fields['event'].choices = [('', 'Нет доступных мероприятий')]
+        except DatabaseError as e:
+            logger.error(f"Error fetching events: {str(e)}")
+            self.fields['event'].choices = [('', 'Ошибка загрузки мероприятий')]
+
+    def clean(self):
+        cleaned_data = super().clean()
+        team_name = cleaned_data.get('team_name')
+        captain_id = cleaned_data.get('captain_id')
+        event_id = cleaned_data.get('event')
+        status = cleaned_data.get('status')
+
+        # Validate required fields
+        if not team_name or not captain_id or not event_id or not status:
+            raise ValidationError("Все обязательные поля должны быть заполнены.")
+        if event_id == '':
+            raise ValidationError("Выберите мероприятие.")
+
+        # Check unique team name
+        try:
+            with connections['org_db'].cursor() as cursor:
+                cursor.execute("""
+                    SELECT id_team
+                    FROM public.team
+                    WHERE team_name = %s
+                """, [team_name])
+                if cursor.fetchone():
+                    raise ValidationError("Команда с таким названием уже существует.")
+        except DatabaseError as e:
+            logger.error(f"Error checking team name uniqueness: {str(e)}")
+            raise ValidationError("Ошибка при проверке названия команды.")
+
+        # Validate participant data
+        participants = []
+        emails = set()
+        for i in range(1, 6):
+            surname = cleaned_data.get(f'player_{i}_surname')
+            name = cleaned_data.get(f'player_{i}_name')
+            patronymic = cleaned_data.get(f'player_{i}_patronymic')
+            email = cleaned_data.get(f'player_{i}_email')
+
+            # Check if any FIO field is filled
+            fio_filled = any([surname, name, patronymic])
+            # If any FIO field is filled, all must be filled including email
+            if fio_filled or email:
+                if not (surname and name and patronymic and email):
+                    raise ValidationError(f"Для участника {i} должны быть указаны все поля: фамилия, имя, отчество и email.")
+                # Check email uniqueness within the form
+                if email in emails:
+                    raise ValidationError(f"Email участника {i} уже указан в другой карточке.")
+                emails.add(email)
+                participants.append({
+                    'surname': surname,
+                    'name': name,
+                    'patronymic': patronymic,
+                    'email': email
+                })
+
+        # Check captain is not in participants
+        try:
+            with connections['org_db'].cursor() as cursor:
+                cursor.execute("""
+                    SELECT email
+                    FROM public.participants
+                    WHERE id_participant = %s
+                """, [captain_id])
+                captain_email = cursor.fetchone()
+                if captain_email:
+                    captain_email = captain_email[0]
+                    if captain_email in emails:
+                        raise ValidationError("Капитан не может быть добавлен как участник.")
+        except DatabaseError as e:
+            logger.error(f"Error fetching captain email: {str(e)}")
+            raise ValidationError("Ошибка при проверке капитана.")
+
+        cleaned_data['participants'] = participants
+        return cleaned_data

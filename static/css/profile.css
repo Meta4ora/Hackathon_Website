@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins&display=swap');
+
+/* Основа */
+body {
+    min-height: 100vh;
+    margin: 0;
+    padding: 40px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Poppins', Arial, sans-serif;
+}
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    max-width: none; /* Remove Bootstrap's max-width constraint */
+}
+/* Фоновая анимация */
+.bg-section {
+    background: linear-gradient(-45deg, #1a1a1a, #3e3e3e, #8c8c8c, #3a3a3a);
+    background-size: 400% 400%;
+    animation: animatedDarkGold 25s ease infinite;
+}
+
+@keyframes animatedDarkGold {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Кнопка "Домой" */
+.home-button {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.home-button img {
+    width: 64px;
+    height: 64px;
+    filter: drop-shadow(0 0 5px rgba(255, 204, 0, 0.6));
+}
+
+.home-button:hover {
+    opacity: 0.8;
+}
+
+/* Карточка формы */
+.card {
+    max-width: 600px;
+    width: 100%;
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Заголовок */
+.form-heading {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #222;
+}
+
+/* Метки */
+.form-label {
+    font-size: 1.1rem;
+    color: #222;
+}
+
+/* Кнопки */
+.btn-lg-custom {
+    font-size: 1.25rem;
+    padding: 1rem 2rem;
+    border-radius: 25px;
+    font-weight: bold;
+    background-color: #fff200;
+    color: #000;
+    border: none;
+    transition: opacity 0.3s;
+}
+
+.btn-lg-custom:hover {
+    opacity: 0.8;
+}
+
+/* Сообщения об ошибках */
+.text-danger {
+    font-size: 0.875rem;
+}

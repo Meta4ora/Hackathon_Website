@@ -1,14 +1,15 @@
 # views.py
+from datetime import datetime
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.exceptions import ValidationError
 from django.db import connections, IntegrityError, DatabaseError, connection
-from django.contrib import messages
 from django.views.decorators.http import require_http_methods
-from django.shortcuts import redirect, render
-from .forms import LoginForm, RegisterForm
+from .forms import LoginForm, RegisterForm, ProfileForm, FeedbackForm
 from .models import PublicEvent
+from django.contrib import messages
 from django.utils.timezone import now
-
+import logging
 def index(request):
     events = PublicEvent.objects.all().order_by('-start_date')[:6]
     is_authenticated = 'user_role' in request.session and 'id' in request.session
@@ -82,27 +83,6 @@ def custom_login(request):
         form = LoginForm()
     return render(request, 'authorization.html', {'form': form})
 
-def profile(request):
-    if 'user_role' in request.session and 'id' in request.session:
-        user_data = {
-            'email': request.session.get('email'),
-            'role': request.session.get('user_role'),
-            'id': request.session.get('id'),
-        }
-        with connections['org_db'].cursor() as cursor:
-            if user_data['role'] == 'admin':
-                cursor.execute("SELECT * FROM public.staff WHERE id_staff = %s", [user_data['id']])
-            else:  # role == 'participant'
-                cursor.execute("SELECT * FROM public.participants WHERE id_participant = %s", [user_data['id']])
-            row = cursor.fetchone()
-            if row:
-                columns = [col[0] for col in cursor.description]
-                user_details = dict(zip(columns, row))
-                user_data.update(user_details)
-        return render(request, 'profile.html', {'user_data': user_data})
-    else:
-        return redirect('login')
-
 def custom_logout(request):
     request.session.flush()
     return redirect('index')
@@ -162,3 +142,152 @@ def add_event(request):
         messages.error(request, f"Ошибка при добавлении мероприятия: {str(e)}")
 
     return redirect('events')
+
+# Set up logging for debugging
+logger = logging.getLogger(__name__)
+
+def profile(request):
+    if 'user_role' not in request.session or 'id' not in request.session:
+        messages.error(request, "Пожалуйста, войдите в систему.")
+        return redirect('login')
+
+    user_data = {
+        'email': request.session.get('email'),
+        'user_role': request.session.get('user_role'),
+        'id': request.session.get('id'),
+    }
+
+    # Fetch user details from the database
+    with connections['org_db'].cursor() as cursor:
+        if user_data['user_role'] == 'admin':
+            cursor.execute("SELECT * FROM public.staff WHERE id_staff = %s", [user_data['id']])
+        else:  # user_role == 'participant'
+            cursor.execute("SELECT * FROM public.participants WHERE id_participant = %s", [user_data['id']])
+        row = cursor.fetchone()
+        if not row:
+            logger.error(f"No user found for id: {user_data['id']} with role: {user_data['user_role']}")
+            messages.error(request, "Пользователь не найден.")
+            return redirect('custom_login')
+
+        columns = [col[0] for col in cursor.description]
+        user_details = dict(zip(columns, row))
+        user_data.update(user_details)
+        # Use session role for template condition
+        user_data['role'] = user_data['user_role']
+        logger.debug(f"user_data after update: {user_data}")
+
+    # Clean the phone number (remove trailing whitespace)
+    if 'phone' in user_data:
+        user_data['phone'] = user_data['phone'].strip()
+
+    # Handle birth_date: Convert string to datetime.date if necessary
+    birth_date = user_data.get('birth_date')
+    if isinstance(birth_date, str):
+        try:
+            birth_date = datetime.strptime(birth_date, '%Y-%m-%d').date()
+        except ValueError:
+            logger.warning(f"Invalid birth_date format for user {user_data['id']}: {birth_date}")
+            birth_date = None
+    user_data['birth_date'] = birth_date
+
+    # Debug: Log user_data to verify contents
+    logger.debug(f"user_data: {user_data}")
+
+    # Initialize forms
+    initial_data = {
+        'name': user_data.get('name', ''),
+        'surname': user_data.get('surname', ''),
+        'patronymic': user_data.get('patronymic', ''),
+        'birth_date': user_data.get('birth_date').strftime('%Y-%m-%d') if user_data.get('birth_date') else None,
+        'phone': user_data.get('phone', ''),
+        'role': user_data.get('role', ''),  # Database role (e.g., 'Крутой')
+    }
+    profile_form = ProfileForm(initial=initial_data)
+    feedback_form = FeedbackForm(id_participant=user_data['id'] if user_data['user_role'] == 'participant' else None)
+    logger.debug(f"Feedback form initialized for id_participant: {user_data['id'] if user_data['user_role'] == 'participant' else None}")
+
+    if request.method == 'POST':
+        if 'profile_submit' in request.POST:
+            profile_form = ProfileForm(request.POST)
+            if profile_form.is_valid():
+                try:
+                    cleaned_data = profile_form.cleaned_data
+                    with connections['org_db'].cursor() as cursor:
+                        if user_data['user_role'] == 'admin':
+                            cursor.execute("""
+                                UPDATE public.staff
+                                SET name = %s, surname = %s, patronymic = %s, birth_date = %s, phone = %s, role = %s
+                                WHERE id_staff = %s
+                            """, [
+                                cleaned_data['name'],
+                                cleaned_data['surname'],
+                                cleaned_data['patronymic'],
+                                cleaned_data['birth_date'],
+                                cleaned_data['phone'],
+                                cleaned_data['role'],
+                                user_data['id']
+                            ])
+                        else:  # user_role == 'participant'
+                            cursor.execute("""
+                                UPDATE public.participants
+                                SET name = %s, surname = %s, patronymic = %s, birth_date = %s, phone = %s, role = %s
+                                WHERE id_participant = %s
+                            """, [
+                                cleaned_data['name'],
+                                cleaned_data['surname'],
+                                cleaned_data['patronymic'],
+                                cleaned_data['birth_date'],
+                                cleaned_data['phone'],
+                                cleaned_data['role'],
+                                user_data['id']
+                            ])
+                    messages.success(request, "Данные профиля успешно обновлены!")
+                    return redirect('profile')
+                except (IntegrityError, DatabaseError) as e:
+                    logger.error(f"Database error during profile update: {str(e)}")
+                    messages.error(request, f"Ошибка при обновлении данных: {str(e)}")
+            else:
+                logger.debug(f"Profile form errors: {profile_form.errors}")
+                messages.error(request, "Пожалуйста, исправьте ошибки в форме профиля.")
+
+        elif 'feedback_submit' in request.POST and user_data['user_role'] == 'participant':
+            feedback_form = FeedbackForm(request.POST, id_participant=user_data['id'])
+            if feedback_form.is_valid():
+                try:
+                    cleaned_data = feedback_form.cleaned_data
+                    with connections['org_db'].cursor() as cursor:
+                        # Get the next id_feedback
+                        cursor.execute("SELECT MAX(id_feedback) FROM public.feedback")
+                        max_id = cursor.fetchone()[0] or 0
+                        new_id = max_id + 1
+
+                        # Insert feedback
+                        cursor.execute("""
+                            INSERT INTO public.feedback (id_feedback, id_participant, id_event, feedback_text, feedback_date)
+                            VALUES (%s, %s, %s, %s, %s)
+                        """, [
+                            new_id,
+                            user_data['id'],
+                            cleaned_data['event'],
+                            cleaned_data['feedback_text'],
+                            now()
+                        ])
+                    messages.success(request, "Отзыв успешно добавлен!")
+                    request.session['show_feedback_modal'] = True  # Trigger modal
+                    return redirect('profile')
+                except (IntegrityError, DatabaseError) as e:
+                    logger.error(f"Database error during feedback submission: {str(e)}")
+                    messages.error(request, f"Ошибка при добавлении отзыва: {str(e)}")
+            else:
+                logger.debug(f"Feedback form errors: {feedback_form.errors}")
+                messages.error(request, "Пожалуйста, исправьте ошибки в форме отзыва.")
+
+    # Clear modal trigger after rendering
+    show_feedback_modal = request.session.pop('show_feedback_modal', False)
+
+    return render(request, 'profile.html', {
+        'profile_form': profile_form,
+        'feedback_form': feedback_form,
+        'user_data': user_data,
+        'show_feedback_modal': show_feedback_modal
+    })
