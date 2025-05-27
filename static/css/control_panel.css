@@ -1,0 +1,145 @@
+/* Общие стили для страницы */
+.bg-section {
+    padding-top: 40px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(-45deg, #1a1a1a, #3e3e3e, #8c8c8c, #3a3a3a);
+    background-size: 400% 400%;
+    animation: animatedDarkGold 25s ease infinite;
+    min-height: 100vh; /* Changed to min-height to allow scrolling */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.card {
+    background-color: #fff;
+    border-radius: 10px;
+    border: none;
+}
+
+.form-heading {
+    color: #333;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+/* Стили для кнопки "Домой" */
+.home-button {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+}
+
+.home-button img {
+    width: 40px;
+    height: 40px;
+    transition: opacity 0.3s ease;
+}
+
+.home-button:hover img {
+    opacity: 0.8;
+}
+
+/* Стили для кнопок */
+.btn-lg-custom {
+    padding: 10px 20px;
+    font-size: 1.1rem;
+    border-radius: 8px;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+    border-color: #5a6268;
+}
+
+/* Стили для форм */
+.form-label {
+    font-weight: 500;
+    color: #333;
+}
+
+.form-control,
+.form-select {
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+    padding: 8px 12px;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.text-danger {
+    font-size: 0.9rem;
+}
+
+.text-muted {
+    font-size: 0.9rem;
+}
+
+/* Стили для таблиц */
+.table {
+    margin-top: 20px;
+}
+
+.table th,
+.table td {
+    vertical-align: middle;
+    text-align: center;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: #f9f9f9;
+}
+
+.table-editable td {
+    padding: 8px;
+}
+
+.table-editable input {
+    width: 100%;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 4px;
+}
+
+/* Стили для модальных окон */
+.modal-content {
+    border-radius: 10px;
+}
+
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.modal-title {
+    font-weight: 600;
+}
+
+.modal-footer {
+    border-top: 1px solid #dee2e6;
+}
