@@ -1,34 +1,59 @@
-// Dynamically show/hide participant cards based on the number of participants
-document.addEventListener('DOMContentLoaded', function() {
-    var showFeedbackModal = {{ show_feedback_modal|yesno:"true,false" }};
-    var showTeamModal = {{ show_team_modal|yesno:"true,false" }};
+document.addEventListener('DOMContentLoaded', function () {
+    // ===========================
+    // 1. Модальные окна (успехи)
+    // ===========================
+    const body = document.body;
+    const showFeedbackModal = body.dataset.showFeedback === 'true';
+    const showTeamModal = body.dataset.showTeam === 'true';
 
-    document.getElementById('num_participants').addEventListener('change', function() {
+    if (showFeedbackModal) {
+        const feedbackModal = document.getElementById('feedbackSuccessModal');
+        if (feedbackModal) {
+            new bootstrap.Modal(feedbackModal).show();
+        }
+    }
+
+    if (showTeamModal) {
+        const teamModal = document.getElementById('teamSuccessModal');
+        if (teamModal) {
+            new bootstrap.Modal(teamModal).show();
+        }
+    }
+
+    // ========================================
+    // 2. Динамическое отображение участников
+    // ========================================
+    const selectElement = document.getElementById('num_participants');
+    if (!selectElement) {
+        console.error('Element with id "num_participants" not found');
+        return;
+    }
+
+    selectElement.addEventListener('change', function () {
         const numParticipants = parseInt(this.value);
-        const totalCards = 4; // We have 4 possible cards (for participants 2 to 5)
+        const totalCards = 4; // Максимум дополнительных участников (2–5)
 
-        // Hide all cards first
+        // Сначала скрываем все карточки
         for (let i = 1; i <= totalCards; i++) {
             const card = document.getElementById(`participant-card-${i}`);
-            card.style.display = 'none';
-            // Clear input fields when hiding
-            card.querySelectorAll('input').forEach(input => input.value = '');
+            if (card) {
+                card.style.display = 'none';
+                card.querySelectorAll('input').forEach(input => input.value = '');
+            }
         }
 
-        // Show the appropriate number of cards (numParticipants - 1, since captain is included)
+        // Показываем нужное количество карточек (без капитана)
         if (numParticipants > 1) {
             const cardsToShow = numParticipants - 1;
             for (let i = 1; i <= cardsToShow; i++) {
-                document.getElementById(`participant-card-${i}`).style.display = 'block';
+                const card = document.getElementById(`participant-card-${i}`);
+                if (card) {
+                    card.style.display = 'block';
+                }
             }
         }
     });
 
-    // Automatically trigger modal if showFeedbackModal or showTeamModal is true
-    if (showFeedbackModal) {
-        new bootstrap.Modal(document.getElementById('feedbackSuccessModal')).show();
-    }
-    if (showTeamModal) {
-        new bootstrap.Modal(document.getElementById('teamSuccessModal')).show();
-    }
+    // Триггерим изменение при загрузке страницы, если уже выбрано значение
+    selectElement.dispatchEvent(new Event('change'));
 });

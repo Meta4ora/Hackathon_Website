@@ -5,20 +5,41 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.core.exceptions import ValidationError
 from django.db import connections, IntegrityError, DatabaseError, connection
 from django.views.decorators.http import require_http_methods
-from .forms import LoginForm, RegisterForm, ProfileForm, FeedbackForm, TeamRegistrationForm
+from .forms import LoginForm, RegisterForm, ProfileForm, FeedbackForm, TeamRegistrationForm, MentorRegistrationForm
 from .models import PublicEvent
 from django.contrib import messages
 from django.utils.timezone import now
 import logging
+
+from django.shortcuts import render
+from django.utils.timezone import now
+from django.db import connection, connections
+
 def index(request):
+    # Последние 6 публичных мероприятий
     events = PublicEvent.objects.all().order_by('-start_date')[:6]
+
+    # Аутентификация
     is_authenticated = 'user_role' in request.session and 'id' in request.session
     user_data = {
         'email': request.session.get('email'),
         'role': request.session.get('user_role'),
     } if is_authenticated else None
 
-    # Получаем отзывы
+    # Предстоящие мероприятия без ментора
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT id_event, event_name, start_date
+            FROM events
+            WHERE start_date > CURRENT_DATE AND id_mentor IS NULL
+            ORDER BY start_date ASC
+        """)
+        upcoming_events = [
+            {"id_event": row[0], "event_name": row[1], "start_date": row[2]}
+            for row in cursor.fetchall()
+        ]
+
+    # Отзывы
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT fb.feedback_text, fb.feedback_date, ev.event_name,
@@ -29,7 +50,6 @@ def index(request):
             ORDER BY fb.feedback_date DESC
             LIMIT 20
         """)
-        raw_feedback = cursor.fetchall()
         feedback_list = [
             {
                 'text': row[0],
@@ -37,16 +57,47 @@ def index(request):
                 'event_name': row[2],
                 'first_name': row[3],
                 'last_name': row[4],
-            } for row in raw_feedback
+            } for row in cursor.fetchall()
         ]
+
+    # Призёры: случайные по каждому месту (1, 2, 3)
+    winners = []
+    with connections['guest'].cursor() as cursor:
+        for place in [1, 2, 3]:
+            cursor.execute("""
+                SELECT c.place_achieved, c.monetary_reward, c.event_name,
+                       p.surname, p.name, p.patronymic
+                FROM public.certificates c
+                JOIN public.participants p ON c.id_participant = p.id_participant
+                WHERE c.place_achieved = %s
+                ORDER BY RANDOM()
+                LIMIT 1
+            """, [place])
+            row = cursor.fetchone()
+            if row:
+                winners.append({
+                    'place': row[0],
+                    'award': row[1],
+                    'event_name': row[2],
+                    'last_name': row[3],
+                    'first_name': row[4],
+                    'patronymic': row[5] or '',
+                })
+
+    # Проверка необходимости повторного открытия модального окна
+    show_mentor_modal = request.session.pop('show_mentor_modal', False)
 
     return render(request, 'index.html', {
         'events': events,
         'is_authenticated': is_authenticated,
         'user_data': user_data,
+        'upcoming_events': upcoming_events,
         'feedback_list': feedback_list,
-        'now': now()
+        'winners': winners,
+        'now': now(),
+        'show_mentor_modal': show_mentor_modal
     })
+
 
 def register(request):
     if request.method == 'POST':
@@ -121,7 +172,6 @@ def add_event(request):
     start_date = request.POST.get('start_date')
     end_date = request.POST.get('end_date')
     id_venue = request.POST.get('id_venue')
-    id_mentor = request.POST.get('id_mentor')
 
     try:
         with connections['default'].cursor() as cursor:
@@ -130,11 +180,11 @@ def add_event(request):
             max_id = cursor.fetchone()[0] or 0
             new_id = max_id + 1
 
-            # Вставляем новое мероприятие
+            # Вставляем новое мероприятие с id_mentor = NULL
             cursor.execute("""
                 INSERT INTO public.events (id_event, event_name, start_date, end_date, id_venue, id_mentor)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, [new_id, event_name, start_date, end_date, id_venue, id_mentor])
+                VALUES (%s, %s, %s, %s, %s, NULL)
+            """, [new_id, event_name, start_date, end_date, id_venue])
 
         messages.success(request, f"Мероприятие успешно добавлено с ID {new_id}.")
 
@@ -347,3 +397,72 @@ def profile(request):
         'show_feedback_modal': show_feedback_modal,
         'show_team_modal': show_team_modal
     })
+
+def control_panel(request):
+    if request.session.get('user_role') != 'admin':
+        messages.error(request, "Доступ запрещен. Требуются права администратора.")
+        return redirect('index')
+    return render(request, 'control_panel.html')
+
+@require_http_methods(["POST"])
+def register_mentor(request):
+    form = MentorRegistrationForm(request.POST)
+    if form.is_valid():
+        email = form.cleaned_data["email"]
+        event_id = form.cleaned_data["event_id"]
+
+        try:
+            with connection.cursor() as cursor:
+                # Поиск ID ментора
+                cursor.execute("SELECT id_mentor FROM mentors WHERE email = %s", [email])
+                row = cursor.fetchone()
+
+                if not row:
+                    # Если ментора нет, создаем нового
+                    cursor.execute("SELECT MAX(id_mentor) FROM mentors")
+                    max_id = cursor.fetchone()[0] or 0
+                    mentor_id = max_id + 1
+
+                    cursor.execute("""
+                        INSERT INTO mentors (id_mentor, surname, name, patronymic, email, phone)
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, [
+                        mentor_id,
+                        form.cleaned_data['surname'],
+                        form.cleaned_data['name'],
+                        form.cleaned_data['patronymic'] or '',
+                        email,
+                        form.cleaned_data['phone']
+                    ])
+                else:
+                    mentor_id = row[0]
+
+                # Проверка: не занят ли уже ментор на этом мероприятии
+                cursor.execute("""
+                    SELECT id_mentor FROM events
+                    WHERE id_event = %s
+                """, [event_id])
+                existing_mentor = cursor.fetchone()
+                if existing_mentor and existing_mentor[0] is not None:
+                    messages.error(request, "На данное мероприятие уже зарегистрирован наставник.")
+                    request.session['show_mentor_modal'] = True
+                    return redirect('index')
+
+                # Привязка ментора
+                cursor.execute("""
+                    UPDATE events
+                    SET id_mentor = %s
+                    WHERE id_event = %s AND start_date > CURRENT_DATE
+                """, [mentor_id, event_id])
+
+            messages.success(request, "Ментор успешно зарегистрирован на мероприятие.")
+        except Exception as e:
+            logger.error(f"Ошибка регистрации ментора: {str(e)}")
+            messages.error(request, f"Ошибка регистрации ментора: {str(e)}")
+            request.session['show_mentor_modal'] = True
+    else:
+        logger.debug(f"Form errors: {form.errors}")
+        messages.error(request, "Пожалуйста, исправьте ошибки в форме.")
+        request.session['show_mentor_modal'] = True
+
+    return redirect('index')

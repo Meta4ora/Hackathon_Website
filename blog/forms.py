@@ -3,7 +3,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 import re
 import bcrypt
-from django.db import connections
+from django.db import connections, connection
 from django import forms
 from django.db import connections
 from datetime import date
@@ -554,3 +554,28 @@ class TeamRegistrationForm(forms.Form):
 
         cleaned_data['participants'] = participants
         return cleaned_data
+
+class MentorRegistrationForm(forms.Form):
+    surname = forms.CharField(max_length=50, required=True)
+    name = forms.CharField(max_length=50, required=True)
+    patronymic = forms.CharField(max_length=50, required=False)
+    email = forms.EmailField(required=True)
+    phone = forms.CharField(max_length=15, required=True)
+    event_id = forms.IntegerField(required=True)
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone')
+        if not re.match(r'^\+?[1-9]\d{1,14}$', phone):
+            raise ValidationError("Введите корректный номер телефона (например, +79991234567).")
+        return phone
+
+    def clean_event_id(self):
+        event_id = self.cleaned_data.get('event_id')
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT id_event FROM events
+                WHERE id_event = %s AND start_date > CURRENT_DATE AND id_mentor IS NULL
+            """, [event_id])
+            if not cursor.fetchone():
+                raise ValidationError("Выбранное мероприятие недоступно для регистрации ментора.")
+        return event_id

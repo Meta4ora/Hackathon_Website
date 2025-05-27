@@ -26,6 +26,9 @@
                         Добро пожаловать, {{ user_data.email }}! <a href="{% url 'logout' %}" class="login-link">Выйти</a>
                     {% endif %}
                 </p>
+                <p class="auth mt-2">
+                    <a href="#" class="login-link text-decoration-underline" data-bs-toggle="modal" data-bs-target="#mentorRegistrationModal">Для наставников...</a>
+                </p>
                 {% if messages %}
                     <div class="messages">
                         {% for message in messages %}
@@ -40,16 +43,22 @@
         </div>
 
         {% if is_authenticated %}
-            <a href="{% url 'profile' %}" class="profile-link">
-                <img src="{% static 'images/profile_icon.PNG' %}" alt="Profile" class="profile-icon">
-                <p class="profile-label">Profile</p>
-            </a>
+            {% if user_data.role == 'admin' %}
+                <a href="{% url 'control_panel' %}" class="profile-link">
+                    <img src="{% static 'images/panel_icon.png' %}" alt="Control Panel" class="profile-icon">
+                    <p class="profile-label">Control Panel</p>
+                </a>
+            {% elif user_data.role == 'participant' %}
+                <a href="{% url 'profile' %}" class="profile-link">
+                    <img src="{% static 'images/profile_icon.PNG' %}" alt="Profile" class="profile-icon">
+                    <p class="profile-label">Profile</p>
+                </a>
+            {% endif %}
         {% endif %}
     </header>
 
     <section class="calendar-section">
         <h2>Календарь мероприятий</h2>
-
         <div class="event-grid">
             {% for event in events %}
                 <div class="event-card">
@@ -65,26 +74,91 @@
     </section>
 
     <section class="feedback-section">
-    <h2>Отзывы участников</h2>
-    <div class="feedback-grid" id="feedbackGrid">
-        {% for feedback in feedback_list %}
-            <div class="feedback-card fade-in hidden">
-                <p class="feedback-text">"{{ feedback.text }}"</p>
-                <p class="feedback-author">
-                    — {{ feedback.last_name }} {{ feedback.first_name }}, {{ feedback.date|date:"d E Y" }}
-                </p>
-                <p class="feedback-event">Мероприятие: {{ feedback.event_name }}</p>
-            </div>
-        {% empty %}
-            <p>Пока нет отзывов.</p>
-        {% endfor %}
-    </div>
-    {% if feedback_list|length > 4 %}
-    <button id="loadMoreBtn" class="btn-primary mt-3">Показать ещё...</button>
-    {% endif %}
+        <h2>Отзывы участников</h2>
+        <div class="feedback-grid" id="feedbackGrid">
+            {% for feedback in feedback_list %}
+                <div class="feedback-card fade-in hidden">
+                    <p class="feedback-text">"{{ feedback.text }}"</p>
+                    <p class="feedback-author">
+                        — {{ feedback.last_name }} {{ feedback.first_name }}, {{ feedback.date|date:"d E Y" }}
+                    </p>
+                    <p class="feedback-event">Мероприятие: {{ feedback.event_name }}</p>
+                </div>
+            {% empty %}
+                <p>Пока нет отзывов.</p>
+            {% endfor %}
+        </div>
+        {% if feedback_list|length > 4 %}
+            <button id="loadMoreBtn" class="btn-primary mt-3">Показать ещё...</button>
+        {% endif %}
     </section>
+
+    <section class="winners-section">
+        <h2>Наши призёры</h2>
+        <div class="winners-grid">
+            {% for winner in winners %}
+                <div class="winner-card winner-place-{{ winner.place }}">
+                    <div class="winner-place-indicator place-{{ winner.place }}"></div>
+                    <h3>{{ winner.place }} место</h3>
+                    <p class="winner-name">{{ winner.last_name }} {{ winner.first_name }} {{ winner.patronymic|default_if_none:"" }}</p>
+                    <p class="winner-event">Мероприятие: {{ winner.event_name }}</p>
+                    <p class="winner-reward">Вознаграждение: {{ winner.award }}</p>
+                </div>
+            {% empty %}
+                <p>Пока нет призёров.</p>
+            {% endfor %}
+        </div>
+    </section>
+
     <script src="{% static 'js/feedback.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     {% include 'includes/footer.html' %}
+
+<!-- Modal: Регистрация наставника -->
+<div class="modal fade" id="mentorRegistrationModal" tabindex="-1" aria-labelledby="mentorRegistrationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'register_mentor' %}" novalidate>
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="mentorRegistrationModalLabel">Регистрация наставника</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="surname" class="form-label">Фамилия</label>
+                        <input type="text" class="form-control" id="surname" name="surname" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Имя</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="patronymic" class="form-label">Отчество</label>
+                        <input type="text" class="form-control" id="patronymic" name="patronymic" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="event" class="form-label">Выберите мероприятие</label>
+                        <select class="form-select" id="event" name="event_id" required>
+                            {% for event in upcoming_events %}
+                                <option value="{{ event.id_event }}">{{ event.event_name }} ({{ event.start_date }})</option>
+                            {% empty %}
+                                <option disabled>Нет предстоящих мероприятий</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>

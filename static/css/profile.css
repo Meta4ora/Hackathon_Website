@@ -1,100 +1,85 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins&display=swap');
-
-/* Основа */
-body {
-    min-height: 100vh;
-    margin: 0;
-    padding: 40px 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Poppins', Arial, sans-serif;
-}
-.container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    max-width: none; /* Remove Bootstrap's max-width constraint */
-}
-/* Фоновая анимация */
-.bg-section {
-    background: linear-gradient(-45deg, #1a1a1a, #3e3e3e, #8c8c8c, #3a3a3a);
-    background-size: 400% 400%;
-    animation: animatedDarkGold 25s ease infinite;
-}
-
-@keyframes animatedDarkGold {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+/* Основные стили фона */
+body.bg-section {
+    background-color: #f8f9fa;
+    padding-top: 40px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 /* Кнопка "Домой" */
 .home-button {
-    position: fixed;
+    position: absolute;
     top: 20px;
     left: 20px;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background-color: transparent;
-    border: none;
-    cursor: pointer;
-    text-decoration: none;
 }
 
 .home-button img {
-    width: 64px;
-    height: 64px;
-    filter: drop-shadow(0 0 5px rgba(255, 204, 0, 0.6));
+    width: 40px;
+    height: 40px;
 }
 
-.home-button:hover {
-    opacity: 0.8;
-}
-
-/* Карточка формы */
-.card {
-    max-width: 600px;
-    width: 100%;
-    background-color: rgba(255, 255, 255, 0.95);
-    border-radius: 20px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-}
-
-/* Заголовок */
+/* Заголовки формы */
 .form-heading {
-    font-size: 2rem;
+    font-size: 1.5rem;
     font-weight: bold;
-    margin-bottom: 1rem;
-    color: #222;
+    color: #333;
 }
 
-/* Метки */
-.form-label {
-    font-size: 1.1rem;
-    color: #222;
-}
-
-/* Кнопки */
+/* Большие кнопки */
 .btn-lg-custom {
-    font-size: 1.25rem;
-    padding: 1rem 2rem;
-    border-radius: 25px;
-    font-weight: bold;
-    background-color: #fff200;
-    color: #000;
+    font-size: 1.1rem;
+    padding: 10px 16px;
+    border-radius: 0.5rem;
+}
+
+/* Тень карточек */
+.card.shadow-sm {
     border: none;
-    transition: opacity 0.3s;
+    border-radius: 0.75rem;
+    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.05);
 }
 
-.btn-lg-custom:hover {
-    opacity: 0.8;
+/* Убираем синий подсвет фокуса у всех кнопок */
+.btn:focus,
+.btn:focus-visible,
+.btn:active:focus,
+.btn-primary:focus,
+.btn-primary:focus-visible,
+.btn-lg-custom:focus,
+.btn-lg-custom:focus-visible,
+.btn-lg-custom:active:focus {
+    box-shadow: none !important;
+    outline: none !important;
 }
 
-/* Сообщения об ошибках */
-.text-danger {
+/* Также убираем box-shadow при active, если нужно */
+.btn:active,
+.btn-primary:active,
+.btn-lg-custom:active {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+/* Карточки участников */
+.participant-card {
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    background-color: #fff;
+}
+
+/* Модальные заголовки */
+.modal-title {
+    font-weight: bold;
+}
+
+/* Инпуты */
+.form-control:focus,
+.form-select:focus {
+    box-shadow: none;
+    border-color: #86b7fe;
+}
+
+/* Маленький текст под select */
+.form-text {
     font-size: 0.875rem;
+    color: #6c757d;
 }

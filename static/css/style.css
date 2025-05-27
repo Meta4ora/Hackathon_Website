@@ -167,16 +167,17 @@ body {
     filter: drop-shadow(0 0 5px rgba(255, 204, 0, 0.6));
 }
 
-
 .profile-label {
     font-size: 18px;
     font-weight: 500;
     color: #ffffff;
     text-shadow: 0 0 4px rgba(0, 0, 0, 0.5); /* чтобы текст читался на фоне */
 }
+
 .profile-icon:hover {
     opacity: 0.8;
 }
+
 .bg-overlay {
     background-color: rgba(0, 0, 0, 0.6); /* Тёмный полупрозрачный фон */
     padding: 2rem;
@@ -231,14 +232,12 @@ body {
     display: block;
 }
 
-
 /* Анимация исчезновения кнопки */
 .fade-out {
     opacity: 0;
     transition: opacity 0.5s ease;
     pointer-events: none;
 }
-
 
 .feedback-card.fade-in.visible {
     opacity: 1;
@@ -251,4 +250,90 @@ body {
     text-align: center;
 }
 
+.winners-section {
+    padding: 2rem;
+    text-align: center;
+    background-color: #fff; /* Белый фон, как в calendar-section */
+    color: #101010; /* Темный текст для контраста */
+}
 
+.winners-section h2 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+}
+
+.winners-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* Три карточки в ряд */
+    gap: 2rem;
+    margin-top: 3rem;
+    margin-bottom: 3rem;
+    padding: 0 1rem;
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.winner-card {
+    background-color: #f3f3f3; /* Фон, как у event-card */
+    padding: 1.5rem;
+    border-radius: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    text-align: left;
+    position: relative;
+    transition: transform 0.2s ease;
+}
+
+.winner-card:hover {
+    transform: translateY(-5px); /* Эффект наведения, как у event-card */
+}
+
+.winner-place-indicator {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 12px;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+}
+
+.winner-place-indicator.place-1 {
+    background-color: #efd371; /* Пастельный золотой для 1-го места */
+}
+
+.winner-place-indicator.place-2 {
+    background-color: #cbe4ef; /* Пастельный серебряный для 2-го места */
+}
+
+.winner-place-indicator.place-3 {
+    background-color: #e69f7b; /* Пастельный бронзовый для 3-го места */
+}
+
+.winner-card h3 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+    color: #101010; /* Темный текст, как в event-card */
+}
+
+.winner-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.winner-event, .winner-reward {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    color: #333; /* Цвет текста, как в event-card */
+}
+
+/* Адаптивность для узких экранов */
+@media (max-width: 768px) {
+    .winners-grid {
+        grid-template-columns: 1fr; /* Вертикальное расположение на узких экранах */
+    }
+}
