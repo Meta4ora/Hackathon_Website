@@ -188,9 +188,9 @@ class ProfileForm(forms.Form):
         if birth_date and birth_date > date.today():
             raise ValidationError("Дата рождения не может быть в будущем.")
         return birth_date
-
 # Set up logging
 logger = logging.getLogger(__name__)
+
 class FeedbackForm(forms.Form):
     event = forms.ChoiceField(
         label="Мероприятие",
@@ -211,14 +211,17 @@ class FeedbackForm(forms.Form):
         if id_participant:
             try:
                 with connections['org_db'].cursor() as cursor:
+                    # Fetch events where the participant is registered via their team
+                    # and the event has either ended or is ongoing (end_date >= today or end_date IS NULL)
                     cursor.execute("""
                         SELECT DISTINCT e.id_event, e.event_name
                         FROM public.events e
                         JOIN public.event_teams te ON e.id_event = te.id_event
                         JOIN public.team_participant tp ON te.id_team = tp.id_team
                         WHERE tp.id_participant = %s
+                        AND (e.end_date >= %s OR e.end_date IS NULL)
                         ORDER BY e.event_name
-                    """, [id_participant])
+                    """, [id_participant, date.today()])
                     events = cursor.fetchall()
                     logger.debug(f"Events for id_participant {id_participant}: {events}")
                     self.fields['event'].choices = [(str(event[0]), event[1]) for event in events]
@@ -258,6 +261,24 @@ class FeedbackForm(forms.Form):
                 logger.error(f"Error checking existing feedback for id_participant {self.id_participant}, id_event {event_id}: {str(e)}")
                 raise ValidationError("Ошибка при проверке отзыва. Попробуйте позже.")
 
+        # Additional validation: Ensure the selected event is one the participant is registered for
+        if self.id_participant and event_id:
+            try:
+                with connections['org_db'].cursor() as cursor:
+                    cursor.execute("""
+                        SELECT 1
+                        FROM public.events e
+                        JOIN public.event_teams te ON e.id_event = te.id_event
+                        JOIN public.team_participant tp ON te.id_team = tp.id_team
+                        WHERE tp.id_participant = %s AND e.id_event = %s
+                    """, [self.id_participant, event_id])
+                    if not cursor.fetchone():
+                        logger.warning(f"Participant {self.id_participant} is not registered for event {event_id}")
+                        raise ValidationError("Вы не зарегистрированы на выбранное мероприятие.")
+            except DatabaseError as e:
+                logger.error(f"Error verifying event registration for id_participant {self.id_participant}, id_event {event_id}: {str(e)}")
+                raise ValidationError("Ошибка при проверке регистрации на мероприятие.")
+
         return cleaned_data
 
 logger = logging.getLogger(__name__)
@@ -286,7 +307,13 @@ class TeamRegistrationForm(forms.Form):
         widget=forms.Select(attrs={'class': 'form-control', 'id': 'event'}),
         required=True
     )
-    # Participant fields
+    num_participants = forms.ChoiceField(
+        label="Количество участников",
+        choices=[(str(i), str(i)) for i in range(1, 6)],
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'num_participants'}),
+        required=True
+    )
+    # Dynamic participant fields (up to 4 additional participants)
     player_1_surname = forms.CharField(
         label="Фамилия участника 1",
         max_length=50,
@@ -379,29 +406,6 @@ class TeamRegistrationForm(forms.Form):
         widget=forms.EmailInput(attrs={'class': 'form-control', 'id': 'player_4_email'}),
         required=False
     )
-    player_5_surname = forms.CharField(
-        label="Фамилия участника 5",
-        max_length=50,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_5_surname'}),
-        required=False
-    )
-    player_5_name = forms.CharField(
-        label="Имя участника 5",
-        max_length=50,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_5_name'}),
-        required=False
-    )
-    player_5_patronymic = forms.CharField(
-        label="Отчество участника 5",
-        max_length=50,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_5_patronymic'}),
-        required=False
-    )
-    player_5_email = forms.EmailField(
-        label="Email участника 5",
-        widget=forms.EmailInput(attrs={'class': 'form-control', 'id': 'player_5_email'}),
-        required=False
-    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -411,8 +415,8 @@ class TeamRegistrationForm(forms.Form):
                 cursor.execute("""
                     SELECT id_event, event_name
                     FROM public.events
-                    WHERE event_date >= %s
-                    ORDER BY event_date
+                    WHERE start_date >= %s
+                    ORDER BY start_date
                 """, [date.today()])
                 events = cursor.fetchall()
                 logger.debug(f"Upcoming events: {events}")
@@ -430,6 +434,7 @@ class TeamRegistrationForm(forms.Form):
         captain_id = cleaned_data.get('captain_id')
         event_id = cleaned_data.get('event')
         status = cleaned_data.get('status')
+        num_participants = int(cleaned_data.get('num_participants', 1))
 
         # Validate required fields
         if not team_name or not captain_id or not event_id or not status:
@@ -442,7 +447,7 @@ class TeamRegistrationForm(forms.Form):
             with connections['org_db'].cursor() as cursor:
                 cursor.execute("""
                     SELECT id_team
-                    FROM public.team
+                    FROM public.teams
                     WHERE team_name = %s
                 """, [team_name])
                 if cursor.fetchone():
@@ -451,33 +456,15 @@ class TeamRegistrationForm(forms.Form):
             logger.error(f"Error checking team name uniqueness: {str(e)}")
             raise ValidationError("Ошибка при проверке названия команды.")
 
-        # Validate participant data
+        # Validate number of participants
+        if num_participants < 1 or num_participants > 5:
+            raise ValidationError("Количество участников должно быть от 1 до 5.")
+
         participants = []
         emails = set()
-        for i in range(1, 6):
-            surname = cleaned_data.get(f'player_{i}_surname')
-            name = cleaned_data.get(f'player_{i}_name')
-            patronymic = cleaned_data.get(f'player_{i}_patronymic')
-            email = cleaned_data.get(f'player_{i}_email')
+        captain_email = None
 
-            # Check if any FIO field is filled
-            fio_filled = any([surname, name, patronymic])
-            # If any FIO field is filled, all must be filled including email
-            if fio_filled or email:
-                if not (surname and name and patronymic and email):
-                    raise ValidationError(f"Для участника {i} должны быть указаны все поля: фамилия, имя, отчество и email.")
-                # Check email uniqueness within the form
-                if email in emails:
-                    raise ValidationError(f"Email участника {i} уже указан в другой карточке.")
-                emails.add(email)
-                participants.append({
-                    'surname': surname,
-                    'name': name,
-                    'patronymic': patronymic,
-                    'email': email
-                })
-
-        # Check captain is not in participants
+        # Get captain's email to prevent adding captain as a participant
         try:
             with connections['org_db'].cursor() as cursor:
                 cursor.execute("""
@@ -488,11 +475,82 @@ class TeamRegistrationForm(forms.Form):
                 captain_email = cursor.fetchone()
                 if captain_email:
                     captain_email = captain_email[0]
-                    if captain_email in emails:
-                        raise ValidationError("Капитан не может быть добавлен как участник.")
+                    emails.add(captain_email)
         except DatabaseError as e:
             logger.error(f"Error fetching captain email: {str(e)}")
             raise ValidationError("Ошибка при проверке капитана.")
+
+        # Check if the captain is already registered for this event
+        try:
+            with connections['org_db'].cursor() as cursor:
+                cursor.execute("""
+                    SELECT t.id_team
+                    FROM public.teams t
+                    JOIN public.event_teams et ON t.id_team = et.id_team
+                    JOIN public.team_participant tp ON t.id_team = tp.id_team
+                    WHERE tp.id_participant = %s AND et.id_event = %s
+                """, [captain_id, event_id])
+                if cursor.fetchone():
+                    raise ValidationError("Вы уже зарегистрированы на это мероприятие в составе другой команды.")
+        except DatabaseError as e:
+            logger.error(f"Error checking captain's existing registration: {str(e)}")
+            raise ValidationError("Ошибка при проверке регистрации капитана на мероприятие.")
+
+        # If num_participants is 1, only the captain is registered
+        if num_participants == 1:
+            participants.append({'id_participant': captain_id})
+        else:
+            # Validate participant data for additional participants
+            num_additional = num_participants - 1  # Subtract 1 for the captain
+            for i in range(1, num_additional + 1):
+                surname = cleaned_data.get(f'player_{i}_surname')
+                name = cleaned_data.get(f'player_{i}_name')
+                patronymic = cleaned_data.get(f'player_{i}_patronymic', '')
+                email = cleaned_data.get(f'player_{i}_email')
+
+                # Check if any field is filled
+                fio_filled = any([surname, name, email])
+                if not fio_filled:
+                    raise ValidationError(f"Для участника {i} должны быть указаны фамилия, имя и email.")
+                if not (surname and name and email):
+                    raise ValidationError(f"Для участника {i} должны быть указаны все обязательные поля: фамилия, имя и email.")
+
+                # Check email uniqueness within the form
+                if email in emails:
+                    raise ValidationError(f"Email участника {i} уже указан в другой карточке или совпадает с email капитана.")
+                emails.add(email)
+
+                # Search for the participant in the database
+                try:
+                    with connections['org_db'].cursor() as cursor:
+                        cursor.execute("""
+                            SELECT id_participant
+                            FROM public.participants
+                            WHERE surname = %s AND name = %s AND patronymic = %s AND email = %s
+                        """, [surname, name, patronymic or '', email])
+                        participant = cursor.fetchone()
+                        if not participant:
+                            raise ValidationError(f"Участник {i} ({surname} {name} {patronymic}, {email}) не найден в базе данных.")
+                        participant_id = participant[0]
+
+                        # Check if this participant is already registered for the event
+                        cursor.execute("""
+                            SELECT t.id_team
+                            FROM public.teams t
+                            JOIN public.event_teams et ON t.id_team = et.id_team
+                            JOIN public.team_participant tp ON t.id_team = tp.id_team
+                            WHERE tp.id_participant = %s AND et.id_event = %s
+                        """, [participant_id, event_id])
+                        if cursor.fetchone():
+                            raise ValidationError(f"Участник {i} ({surname} {name} {patronymic}, {email}) уже зарегистрирован на это мероприятие в составе другой команды.")
+
+                        participants.append({'id_participant': participant_id})
+                except DatabaseError as e:
+                    logger.error(f"Error searching for participant {i}: {str(e)}")
+                    raise ValidationError(f"Ошибка при поиске участника {i} в базе данных.")
+
+            # Ensure captain is included
+            participants.append({'id_participant': captain_id})
 
         cleaned_data['participants'] = participants
         return cleaned_data

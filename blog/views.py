@@ -5,7 +5,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.core.exceptions import ValidationError
 from django.db import connections, IntegrityError, DatabaseError, connection
 from django.views.decorators.http import require_http_methods
-from .forms import LoginForm, RegisterForm, ProfileForm, FeedbackForm
+from .forms import LoginForm, RegisterForm, ProfileForm, FeedbackForm, TeamRegistrationForm
 from .models import PublicEvent
 from django.contrib import messages
 from django.utils.timezone import now
@@ -172,7 +172,6 @@ def profile(request):
         columns = [col[0] for col in cursor.description]
         user_details = dict(zip(columns, row))
         user_data.update(user_details)
-        # Use session role for template condition
         user_data['role'] = user_data['user_role']
         logger.debug(f"user_data after update: {user_data}")
 
@@ -204,6 +203,7 @@ def profile(request):
     }
     profile_form = ProfileForm(initial=initial_data)
     feedback_form = FeedbackForm(id_participant=user_data['id'] if user_data['user_role'] == 'participant' else None)
+    team_form = TeamRegistrationForm()
     logger.debug(f"Feedback form initialized for id_participant: {user_data['id'] if user_data['user_role'] == 'participant' else None}")
 
     if request.method == 'POST':
@@ -273,7 +273,7 @@ def profile(request):
                             now()
                         ])
                     messages.success(request, "Отзыв успешно добавлен!")
-                    request.session['show_feedback_modal'] = True  # Trigger modal
+                    request.session['show_feedback_modal'] = True
                     return redirect('profile')
                 except (IntegrityError, DatabaseError) as e:
                     logger.error(f"Database error during feedback submission: {str(e)}")
@@ -282,12 +282,68 @@ def profile(request):
                 logger.debug(f"Feedback form errors: {feedback_form.errors}")
                 messages.error(request, "Пожалуйста, исправьте ошибки в форме отзыва.")
 
-    # Clear modal trigger after rendering
+        elif 'team_submit' in request.POST and user_data['user_role'] == 'participant':
+            team_form = TeamRegistrationForm(request.POST)
+            if team_form.is_valid():
+                try:
+                    cleaned_data = team_form.cleaned_data
+                    with connections['org_db'].cursor() as cursor:
+                        # Get the next id_team
+                        cursor.execute("SELECT MAX(id_team) FROM public.teams")
+                        max_id = cursor.fetchone()[0] or 0
+                        new_team_id = max_id + 1
+
+                        # Insert the new team
+                        captain_name = f"{user_data['surname']} {user_data['name']} {user_data['patronymic']}"
+                        cursor.execute("""
+                            INSERT INTO public.teams (id_team, status, team_name, captain)
+                            VALUES (%s, %s, %s, %s)
+                        """, [
+                            new_team_id,
+                            cleaned_data['status'],
+                            cleaned_data['team_name'],
+                            captain_name
+                        ])
+
+                        # Associate the team with the event
+                        cursor.execute("""
+                            INSERT INTO public.event_teams (id_team, id_event)
+                            VALUES (%s, %s)
+                        """, [
+                            new_team_id,
+                            cleaned_data['event']
+                        ])
+
+                        # Associate participants with the team
+                        participant_ids = [p['id_participant'] for p in cleaned_data['participants']]
+                        for participant_id in participant_ids:
+                            cursor.execute("""
+                                INSERT INTO public.team_participant (id_team, id_participant)
+                                VALUES (%s, %s)
+                            """, [
+                                new_team_id,
+                                participant_id
+                            ])
+
+                    messages.success(request, "Команда успешно зарегистрирована!")
+                    request.session['show_team_modal'] = True
+                    return redirect('profile')
+                except (IntegrityError, DatabaseError) as e:
+                    logger.error(f"Database error during team registration: {str(e)}")
+                    messages.error(request, f"Ошибка при регистрации команды: {str(e)}")
+            else:
+                logger.debug(f"Team form errors: {team_form.errors}")
+                messages.error(request, "Пожалуйста, исправьте ошибки в форме регистрации команды.")
+
+    # Clear modal triggers after rendering
     show_feedback_modal = request.session.pop('show_feedback_modal', False)
+    show_team_modal = request.session.pop('show_team_modal', False)
 
     return render(request, 'profile.html', {
         'profile_form': profile_form,
         'feedback_form': feedback_form,
+        'team_form': team_form,
         'user_data': user_data,
-        'show_feedback_modal': show_feedback_modal
+        'show_feedback_modal': show_feedback_modal,
+        'show_team_modal': show_team_modal
     })
