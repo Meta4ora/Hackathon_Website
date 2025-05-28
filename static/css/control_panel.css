@@ -143,3 +143,34 @@
 .modal-footer {
     border-top: 1px solid #dee2e6;
 }
+
+/* Стили для модального окна */
+#summarySuccessModal .modal-dialog {
+    max-width: 90vw;
+    margin: 1.75rem auto;
+}
+
+#summarySuccessModal .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+    overflow-x: auto;
+    padding: 1rem;
+}
+
+#summarySuccessModal .table {
+    margin: 0 auto;
+    width: 100%;
+    max-width: 100%;
+    border-collapse: collapse;
+}
+
+#summarySuccessModal .table th,
+#summarySuccessModal .table td {
+    white-space: nowrap;
+    padding: 0.5rem;
+}
+
+#summarySuccessModal .table-responsive {
+    overflow-x: auto;
+    width: 100%;
+}

@@ -1,4 +1,4 @@
-# forms.py
+# Импорт необходимых модулей для работы с формами, валидацией, базой данных и логированием
 from django import forms
 from django.core.exceptions import ValidationError
 import re
@@ -8,56 +8,67 @@ from django import forms
 from django.db import connections
 from datetime import date
 import logging
-
 from psycopg2 import DatabaseError
 
+# Инициализация логгера для записи событий и ошибок
+logger = logging.getLogger(__name__)
 
+# Класс формы для регистрации нового участника
 class RegisterForm(forms.Form):
+    # Поле для ввода email
     email = forms.EmailField(
         label="Email",
         max_length=254,
         required=True,
         widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Введите ваш email'})
     )
+    # Поле для ввода пароля
     password = forms.CharField(
         label="Пароль",
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Введите пароль'}),
         min_length=8
     )
+    # Поле для подтверждения пароля
     confirm_password = forms.CharField(
         label="Подтвердите пароль",
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Подтвердите пароль'}),
         min_length=8
     )
+    # Поле для ввода имени
     name = forms.CharField(
         label="Имя",
         max_length=50,
         required=True,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите ваше имя'})
     )
+    # Поле для ввода фамилии
     surname = forms.CharField(
         label="Фамилия",
         max_length=50,
         required=True,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите вашу фамилию'})
     )
+    # Поле для ввода отчества (необязательное)
     patronymic = forms.CharField(
         label="Отчество",
         max_length=50,
         required=False,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите ваше отчество (опционально)'})
     )
+    # Поле для ввода даты рождения
     birth_date = forms.DateField(
         label="Дата рождения",
         required=True,
         widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'})
     )
+    # Поле для ввода номера телефона
     phone = forms.CharField(
         label="Телефон",
         max_length=15,
         required=True,
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите ваш телефон'})
     )
+    # Поле для ввода роли в команде
     role = forms.CharField(
         label="Роль в команде",
         max_length=15,
@@ -65,30 +76,35 @@ class RegisterForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Введите вашу роль'})
     )
 
+    # Метод проверки уникальности email
     def clean_email(self):
         email = self.cleaned_data.get('email')
         with connections['org_db'].cursor() as cursor:
+            # Проверяем, существует ли email в таблице participants
             cursor.execute("SELECT email FROM public.participants WHERE email = %s", [email])
             if cursor.fetchone():
                 raise ValidationError("Этот email уже зарегистрирован.")
         return email
 
+    # Метод проверки формата номера телефона
     def clean_phone(self):
         phone = self.cleaned_data.get('phone')
-        # Простая проверка формата телефона (например, +79991234567)
+        # Проверка с использованием регулярного выражения (например, +79991234567)
         if not re.match(r'^\+?[1-9]\d{1,14}$', phone):
             raise ValidationError("Введите корректный номер телефона (например, +79991234567).")
         return phone
 
+    # Общая валидация формы
     def clean(self):
         cleaned_data = super().clean()
         password = cleaned_data.get('password')
         confirm_password = cleaned_data.get('confirm_password')
-
+        # Проверка совпадения пароля и подтверждения
         if password and confirm_password and password != confirm_password:
             raise ValidationError("Пароли не совпадают.")
         return cleaned_data
 
+    # Метод сохранения нового участника в базе данных
     def save(self):
         cleaned_data = self.cleaned_data
         email = cleaned_data['email']
@@ -99,14 +115,12 @@ class RegisterForm(forms.Form):
         birth_date = cleaned_data['birth_date']
         phone = cleaned_data['phone']
         role = cleaned_data['role']
-
         with connections['org_db'].cursor() as cursor:
-            # Получаем последний id_participant
+            # Получаем максимальный id_participant для генерации нового ID
             cursor.execute("SELECT MAX(id_participant) FROM public.participants")
             last_id = cursor.fetchone()[0] or 0
             new_id = last_id + 1
-
-            # Вызываем процедуру для вставки нового участника
+            # Вызываем хранимую процедуру для создания участника
             cursor.execute("""
                 CALL public.create_participant(
                     %s, %s, %s, %s, %s, %s, %s, %s, %s
@@ -122,33 +136,35 @@ class RegisterForm(forms.Form):
                 phone,
                 password
             ])
-
+        # Возвращаем данные нового участника
         return {
             'id_participant': new_id,
             'email': email,
             'role': "Конкурсант"
         }
 
+# Класс формы для аутентификации пользователя
 class LoginForm(forms.Form):
+    # Поле для ввода email
     email = forms.EmailField(label='Электронная почта')
+    # Поле для ввода пароля
     password = forms.CharField(label='Пароль', widget=forms.PasswordInput)
 
+    # Метод аутентификации пользователя
     def authenticate_user(self):
         email = self.cleaned_data.get('email')
         password = self.cleaned_data.get('password')
-
         with connections['org_db'].cursor() as cursor:
-            # First, check the staff table
+            # Проверяем таблицу staff для администраторов
             cursor.execute("SELECT * FROM public.staff WHERE email = %s", [email])
             staff_row = cursor.fetchone()
             if staff_row:
                 columns = [col[0] for col in cursor.description]
                 staff = dict(zip(columns, staff_row))
-                # Assuming the password in the staff table is also hashed with bcrypt
+                # Проверяем хеш пароля с использованием bcrypt
                 if bcrypt.checkpw(password.encode('utf-8'), staff['password_hash'].encode('utf-8')):
                     return 'admin', staff
-
-            # If no match in staff, check the participants table
+            # Проверяем таблицу participants для участников
             cursor.execute("SELECT * FROM public.participants WHERE email = %s", [email])
             participant_row = cursor.fetchone()
             if participant_row:
@@ -156,47 +172,60 @@ class LoginForm(forms.Form):
                 participant = dict(zip(columns, participant_row))
                 if bcrypt.checkpw(password.encode('utf-8'), participant['password_hash'].encode('utf-8')):
                     return 'participant', participant
-
-        # If no match is found in either table
+        # Вызываем ошибку при неверных учетных данных
         raise ValidationError("Неверный email или пароль")
 
+# Импорты для формы редактирования профиля
 from django import forms
 from django.core.exceptions import ValidationError
 import re
 from datetime import date
 
+# Класс формы для редактирования профиля пользователя
 class ProfileForm(forms.Form):
+    # Поле для имени
     name = forms.CharField(label="Имя", max_length=50, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    # Поле для фамилии
     surname = forms.CharField(label="Фамилия", max_length=50, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    # Поле для отчества (необязательное)
     patronymic = forms.CharField(label="Отчество", max_length=50, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    # Поле для даты рождения
     birth_date = forms.DateField(
         label="Дата рождения",
         widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
-        required=False  # Allow empty birth_date if needed
+        required=False  # Поле необязательное
     )
+    # Поле для номера телефона
     phone = forms.CharField(label="Телефон", max_length=15, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    # Поле для роли в команде
     role = forms.CharField(label="Роль в команде", max_length=15, widget=forms.TextInput(attrs={'class': 'form-control'}))
 
+    # Метод проверки формата номера телефона
     def clean_phone(self):
         phone = self.cleaned_data.get('phone')
         if not re.match(r'^\+?[1-9]\d{1,14}$', phone):
             raise ValidationError("Введите корректный номер телефона (например, +79991234567).")
         return phone
 
+    # Метод проверки даты рождения
     def clean_birth_date(self):
         birth_date = self.cleaned_data.get('birth_date')
         if birth_date and birth_date > date.today():
             raise ValidationError("Дата рождения не может быть в будущем.")
         return birth_date
-# Set up logging
+
+# Повторная инициализация логгера
 logger = logging.getLogger(__name__)
 
+# Класс формы для отправки отзыва о мероприятии
 class FeedbackForm(forms.Form):
+    # Поле для выбора мероприятия
     event = forms.ChoiceField(
         label="Мероприятие",
         widget=forms.Select(attrs={'class': 'form-control'}),
         required=True
     )
+    # Поле для текста отзыва
     feedback_text = forms.CharField(
         label="Отзыв",
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'Введите ваш отзыв'}),
@@ -204,6 +233,7 @@ class FeedbackForm(forms.Form):
         required=True
     )
 
+    # Инициализация формы с динамическим списком мероприятий
     def __init__(self, *args, **kwargs):
         id_participant = kwargs.pop('id_participant', None)
         super().__init__(*args, **kwargs)
@@ -211,8 +241,7 @@ class FeedbackForm(forms.Form):
         if id_participant:
             try:
                 with connections['org_db'].cursor() as cursor:
-                    # Fetch events where the participant is registered via their team
-                    # and the event has either ended or is ongoing (end_date >= today or end_date IS NULL)
+                    # Запрашиваем мероприятия, в которых участник зарегистрирован через команду
                     cursor.execute("""
                         SELECT DISTINCT e.id_event, e.event_name
                         FROM public.events e
@@ -224,6 +253,7 @@ class FeedbackForm(forms.Form):
                     """, [id_participant, date.today()])
                     events = cursor.fetchall()
                     logger.debug(f"Events for id_participant {id_participant}: {events}")
+                    # Заполняем список выбора мероприятий
                     self.fields['event'].choices = [(str(event[0]), event[1]) for event in events]
                     if not events:
                         logger.warning(f"No events found for id_participant {id_participant}")
@@ -231,20 +261,19 @@ class FeedbackForm(forms.Form):
             except DatabaseError as e:
                 logger.error(f"Error fetching events for id_participant {id_participant}: {str(e)}")
                 self.fields['event'].choices = [('', 'Ошибка загрузки мероприятий')]
-        self.id_participant = id_participant  # Store id_participant for use in clean
+        self.id_participant = id_participant  # Сохраняем ID участника для использования в clean
 
+    # Проверка данных формы
     def clean(self):
         cleaned_data = super().clean()
         event_id = cleaned_data.get('event')
         feedback_text = cleaned_data.get('feedback_text')
-
-        # Validate required fields
+        # Проверка заполнения обязательных полей
         if not event_id or not feedback_text:
             raise ValidationError("Все поля обязательны для заполнения.")
         if event_id == '':
             raise ValidationError("Выберите мероприятие.")
-
-        # Check for existing feedback
+        # Проверка наличия существующего отзыва
         if self.id_participant and event_id:
             try:
                 with connections['org_db'].cursor() as cursor:
@@ -260,8 +289,7 @@ class FeedbackForm(forms.Form):
             except DatabaseError as e:
                 logger.error(f"Error checking existing feedback for id_participant {self.id_participant}, id_event {event_id}: {str(e)}")
                 raise ValidationError("Ошибка при проверке отзыва. Попробуйте позже.")
-
-        # Additional validation: Ensure the selected event is one the participant is registered for
+        # Проверка регистрации участника на мероприятие
         if self.id_participant and event_id:
             try:
                 with connections['org_db'].cursor() as cursor:
@@ -278,42 +306,46 @@ class FeedbackForm(forms.Form):
             except DatabaseError as e:
                 logger.error(f"Error verifying event registration for id_participant {self.id_participant}, id_event {event_id}: {str(e)}")
                 raise ValidationError("Ошибка при проверке регистрации на мероприятие.")
-
         return cleaned_data
 
+# Повторная инициализация логгера
 logger = logging.getLogger(__name__)
 
-# [Existing Forms: RegisterForm, LoginForm, ProfileForm, FeedbackForm remain unchanged]
-
+# Класс формы для регистрации новой команды
 class TeamRegistrationForm(forms.Form):
+    # Поле для названия команды
     team_name = forms.CharField(
         label="Название команды",
         max_length=100,
         widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'team_name'}),
         required=True
     )
+    # Поле для выбора статуса команды
     status = forms.ChoiceField(
         label="Статус",
         choices=[('Активна', 'Активна'), ('Неактивна', 'Неактивна')],
         widget=forms.Select(attrs={'class': 'form-control', 'id': 'status'}),
         required=True
     )
+    # Скрытое поле для ID капитана
     captain_id = forms.IntegerField(
         widget=forms.HiddenInput(attrs={'id': 'captain_id'}),
         required=True
     )
+    # Поле для выбора мероприятия
     event = forms.ChoiceField(
         label="Мероприятие",
         widget=forms.Select(attrs={'class': 'form-control', 'id': 'event'}),
         required=True
     )
+    # Поле для выбора количества участников
     num_participants = forms.ChoiceField(
         label="Количество участников",
         choices=[(str(i), str(i)) for i in range(1, 6)],
         widget=forms.Select(attrs={'class': 'form-select', 'id': 'num_participants'}),
         required=True
     )
-    # Dynamic participant fields (up to 4 additional participants)
+    # Поля для данных дополнительных участников (до 4)
     player_1_surname = forms.CharField(
         label="Фамилия участника 1",
         max_length=50,
@@ -378,7 +410,7 @@ class TeamRegistrationForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'form-control', 'id': 'player_3_patronymic'}),
         required=False
     )
-    player_3_email = forms.EmailField(
+    player_3_email = forms.CharField(
         label="Email участника 3",
         widget=forms.EmailInput(attrs={'class': 'form-control', 'id': 'player_3_email'}),
         required=False
@@ -407,11 +439,12 @@ class TeamRegistrationForm(forms.Form):
         required=False
     )
 
+    # Инициализация формы с динамическим списком мероприятий
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Populate event choices with upcoming events
         try:
             with connections['org_db'].cursor() as cursor:
+                # Запрашиваем предстоящие мероприятия
                 cursor.execute("""
                     SELECT id_event, event_name
                     FROM public.events
@@ -420,6 +453,7 @@ class TeamRegistrationForm(forms.Form):
                 """, [date.today()])
                 events = cursor.fetchall()
                 logger.debug(f"Upcoming events: {events}")
+                # Заполняем список выбора мероприятий
                 self.fields['event'].choices = [(str(event[0]), event[1]) for event in events]
                 if not events:
                     logger.warning("No upcoming events found")
@@ -428,6 +462,7 @@ class TeamRegistrationForm(forms.Form):
             logger.error(f"Error fetching events: {str(e)}")
             self.fields['event'].choices = [('', 'Ошибка загрузки мероприятий')]
 
+    # Проверка данных формы
     def clean(self):
         cleaned_data = super().clean()
         team_name = cleaned_data.get('team_name')
@@ -435,14 +470,12 @@ class TeamRegistrationForm(forms.Form):
         event_id = cleaned_data.get('event')
         status = cleaned_data.get('status')
         num_participants = int(cleaned_data.get('num_participants', 1))
-
-        # Validate required fields
+        # Проверка заполнения обязательных полей
         if not team_name or not captain_id or not event_id or not status:
             raise ValidationError("Все обязательные поля должны быть заполнены.")
         if event_id == '':
             raise ValidationError("Выберите мероприятие.")
-
-        # Check unique team name
+        # Проверка уникальности названия команды
         try:
             with connections['org_db'].cursor() as cursor:
                 cursor.execute("""
@@ -455,16 +488,13 @@ class TeamRegistrationForm(forms.Form):
         except DatabaseError as e:
             logger.error(f"Error checking team name uniqueness: {str(e)}")
             raise ValidationError("Ошибка при проверке названия команды.")
-
-        # Validate number of participants
+        # Проверка количества участников
         if num_participants < 1 or num_participants > 5:
             raise ValidationError("Количество участников должно быть от 1 до 5.")
-
         participants = []
         emails = set()
         captain_email = None
-
-        # Get captain's email to prevent adding captain as a participant
+        # Получаем email капитана
         try:
             with connections['org_db'].cursor() as cursor:
                 cursor.execute("""
@@ -479,8 +509,7 @@ class TeamRegistrationForm(forms.Form):
         except DatabaseError as e:
             logger.error(f"Error fetching captain email: {str(e)}")
             raise ValidationError("Ошибка при проверке капитана.")
-
-        # Check if the captain is already registered for this event
+        # Проверка регистрации капитана на мероприятие
         try:
             with connections['org_db'].cursor() as cursor:
                 cursor.execute("""
@@ -495,32 +524,28 @@ class TeamRegistrationForm(forms.Form):
         except DatabaseError as e:
             logger.error(f"Error checking captain's existing registration: {str(e)}")
             raise ValidationError("Ошибка при проверке регистрации капитана на мероприятие.")
-
-        # If num_participants is 1, only the captain is registered
+        # Если количество участников равно 1, добавляем только капитана
         if num_participants == 1:
             participants.append({'id_participant': captain_id})
         else:
-            # Validate participant data for additional participants
-            num_additional = num_participants - 1  # Subtract 1 for the captain
+            # Проверяем данные дополнительных участников
+            num_additional = num_participants - 1
             for i in range(1, num_additional + 1):
                 surname = cleaned_data.get(f'player_{i}_surname')
                 name = cleaned_data.get(f'player_{i}_name')
                 patronymic = cleaned_data.get(f'player_{i}_patronymic', '')
                 email = cleaned_data.get(f'player_{i}_email')
-
-                # Check if any field is filled
+                # Проверка заполнения хотя бы одного поля
                 fio_filled = any([surname, name, email])
                 if not fio_filled:
                     raise ValidationError(f"Для участника {i} должны быть указаны фамилия, имя и email.")
                 if not (surname and name and email):
                     raise ValidationError(f"Для участника {i} должны быть указаны все обязательные поля: фамилия, имя и email.")
-
-                # Check email uniqueness within the form
+                # Проверка уникальности email
                 if email in emails:
                     raise ValidationError(f"Email участника {i} уже указан в другой карточке или совпадает с email капитана.")
                 emails.add(email)
-
-                # Search for the participant in the database
+                # Поиск участника в базе данных
                 try:
                     with connections['org_db'].cursor() as cursor:
                         cursor.execute("""
@@ -532,8 +557,7 @@ class TeamRegistrationForm(forms.Form):
                         if not participant:
                             raise ValidationError(f"Участник {i} ({surname} {name} {patronymic}, {email}) не найден в базе данных.")
                         participant_id = participant[0]
-
-                        # Check if this participant is already registered for the event
+                        # Проверка регистрации участника на мероприятии
                         cursor.execute("""
                             SELECT t.id_team
                             FROM public.teams t
@@ -543,35 +567,42 @@ class TeamRegistrationForm(forms.Form):
                         """, [participant_id, event_id])
                         if cursor.fetchone():
                             raise ValidationError(f"Участник {i} ({surname} {name} {patronymic}, {email}) уже зарегистрирован на это мероприятие в составе другой команды.")
-
                         participants.append({'id_participant': participant_id})
                 except DatabaseError as e:
                     logger.error(f"Error searching for participant {i}: {str(e)}")
                     raise ValidationError(f"Ошибка при поиске участника {i} в базе данных.")
-
-            # Ensure captain is included
+            # Добавляем капитана в список участников
             participants.append({'id_participant': captain_id})
-
         cleaned_data['participants'] = participants
         return cleaned_data
 
+# Класс формы для регистрации ментора
 class MentorRegistrationForm(forms.Form):
+    # Поле для фамилии
     surname = forms.CharField(max_length=50, required=True)
+    # Поле для имени
     name = forms.CharField(max_length=50, required=True)
+    # Поле для отчества (необязательное)
     patronymic = forms.CharField(max_length=50, required=False)
+    # Поле для email
     email = forms.EmailField(required=True)
+    # Поле для номера телефона
     phone = forms.CharField(max_length=15, required=True)
+    # Поле для ID мероприятия
     event_id = forms.IntegerField(required=True)
 
+    # Метод проверки формата номера телефона
     def clean_phone(self):
         phone = self.cleaned_data.get('phone')
         if not re.match(r'^\+?[1-9]\d{1,14}$', phone):
             raise ValidationError("Введите корректный номер телефона (например, +79991234567).")
         return phone
 
+    # Метод проверки доступности мероприятия для регистрации ментора
     def clean_event_id(self):
         event_id = self.cleaned_data.get('event_id')
         with connection.cursor() as cursor:
+            # Проверяем, что мероприятие существует, ещё не началось и не имеет ментора
             cursor.execute("""
                 SELECT id_event FROM events
                 WHERE id_event = %s AND start_date > CURRENT_DATE AND id_mentor IS NULL
