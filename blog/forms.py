@@ -586,17 +586,8 @@ class MentorRegistrationForm(forms.Form):
     patronymic = forms.CharField(max_length=50, required=False)
     # Поле для email
     email = forms.EmailField(required=True)
-    # Поле для номера телефона
-    phone = forms.CharField(max_length=15, required=True)
     # Поле для ID мероприятия
     event_id = forms.IntegerField(required=True)
-
-    # Метод проверки формата номера телефона
-    def clean_phone(self):
-        phone = self.cleaned_data.get('phone')
-        if not re.match(r'^\+?[1-9]\d{1,14}$', phone):
-            raise ValidationError("Введите корректный номер телефона (например, +79991234567).")
-        return phone
 
     # Метод проверки доступности мероприятия для регистрации ментора
     def clean_event_id(self):
